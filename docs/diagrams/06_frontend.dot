@@ -1,0 +1,21 @@
+digraph G {
+graph [fontname="Inter", fontsize=15, fontcolor="#111827", bgcolor="white", pad=0.3, nodesep=0.45, ranksep=0.5];
+node  [fontname="Inter", fontsize=14, fontcolor="#111827", shape=box, style="rounded,filled", fillcolor="#F9FAFB", color="#6B7280", penwidth=1.6, margin="0.22,0.12"];
+edge  [fontname="Inter", fontsize=12, fontcolor="#111827", color="#374151", penwidth=1.4, arrowsize=0.8];
+rankdir=TB; ranksep=0.42; compound=true; nodesep=0.3;
+lg [label=<<B>Login</B>  e-mail + password -&gt; JWT>, width=4];
+ac [label=<<B>AuthContext</B>  token + role in sessionStorage>, width=4];
+subgraph cluster_e { label=<<B>EmployeeRoute</B> (role EMPLOYEE)>; style="rounded,filled"; fillcolor="#EFF6FF"; color="#2563EB"; margin=10;
+  node [fillcolor="white", color="#2563EB", fontsize=13];
+  e1 [label="My Trips\n+ Vera icon"]; e2 [label="Create Trip"]; e3 [label="Trip Detail\n(no Vera)"];
+  e4 [label="Expense Management\n+ Vera icon"]; e5 [label="Raise Ticket\n(no Vera)"]; e6 [label="Ticket Detail\n(no Vera)"];
+  {rank=same; e1 -> e2 -> e3 [style=invis];} {rank=same; e4 -> e5 -> e6 [style=invis];} e1 -> e4 [style=invis]; }
+subgraph cluster_m { label=<<B>ManagerRoute</B> (role MANAGER, no Vera)>; style="rounded,filled"; fillcolor="#ECFDF5"; color="#059669"; margin=10;
+  node [fillcolor="white", color="#059669", fontsize=13];
+  m1 [label="Approvals\n(3 tabs)"]; m2 [label="Trip review"]; m3 [label="Ticket review\ncomment + decision"]; m4 [label="Spending\nSummary"];
+  {rank=same; m1 -> m2 [style=invis];} {rank=same; m3 -> m4 [style=invis];} m1 -> m3 [style=invis]; }
+api [label=<<B>src/api/client.js</B>  base URL, Bearer JWT, 401 -&gt; login, error envelope>, width=5.5];
+be [label="FastAPI re-checks JWT signature, expiry, role, ownership", fillcolor="#FEF2F2", color="#DC2626", width=5.5];
+lg -> ac; ac -> e2 [lhead=cluster_e]; ac -> m2 [lhead=cluster_m];
+e5 -> api [ltail=cluster_e]; m2 -> api [ltail=cluster_m]; api -> be;
+}

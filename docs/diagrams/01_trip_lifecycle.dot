@@ -1,0 +1,18 @@
+digraph G {
+graph [fontname="Inter", fontsize=15, fontcolor="#111827", bgcolor="white", pad=0.3, nodesep=0.45, ranksep=0.5];
+node  [fontname="Inter", fontsize=14, fontcolor="#111827", shape=box, style="rounded,filled", fillcolor="#F9FAFB", color="#6B7280", penwidth=1.6, margin="0.22,0.12"];
+edge  [fontname="Inter", fontsize=12, fontcolor="#111827", color="#374151", penwidth=1.4, arrowsize=0.8];
+rankdir=TB; ranksep=0.7; nodesep=0.9;
+st [shape=circle, label="", width=0.25, style=filled, fillcolor="#111827", color="#111827"];
+ip [label=<<B>In Progress</B><BR/><FONT POINT-SIZE="11">trip ID created, waiting for manager</FONT>>, fillcolor="#EFF6FF", color="#2563EB"];
+rj [label=<<B>Rejected</B><BR/><FONT POINT-SIZE="11">final, read-only</FONT>>, fillcolor="#FEF2F2", color="#DC2626"];
+ac [label=<<B>Approved - Active</B><BR/><FONT POINT-SIZE="11">tickets and expenses allowed</FONT>>, fillcolor="#ECFDF5", color="#059669", penwidth=2.4];
+co [label=<<B>Approved - Completed</B><BR/><FONT POINT-SIZE="11">no new tickets or expenses</FONT>>, fillcolor="#F9FAFB", color="#6B7280"];
+st -> ip [label="  employee submits\n  (start within 1 year)"];
+ip -> ip [label=" employee edits"];
+ip -> rj [label="  manager rejects\n  (review comment)"];
+ip -> ac [label="  manager approves"];
+ac -> ac [label=" raise tickets"];
+ac -> co [label="  manager marks complete (on/after end date)\n  or system: start date + 90 days"];
+{rank=same; rj; ac}
+}

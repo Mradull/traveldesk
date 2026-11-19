@@ -1,0 +1,2 @@
+-- chat_sessions, chat_conversations, chat_messages, policy_chunks (embedding REAL[] of length 384).
+-- Owner: Piyush (M2)  |  Spec: Agile Spec v2.0

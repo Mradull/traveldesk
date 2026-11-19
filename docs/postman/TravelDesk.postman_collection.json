@@ -1,0 +1,57 @@
+{
+  "info": {
+    "name": "TravelDesk API (Agile Spec v2.0)",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "description": "Owner: Mradul (M3). Requests are added per sprint; every request uses {{baseUrl}} and Bearer {{token}}."
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{token}}",
+        "type": "string"
+      }
+    ]
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8000/api/v1"
+    },
+    {
+      "key": "token",
+      "value": ""
+    }
+  ],
+  "item": [
+    {
+      "name": "Auth",
+      "item": []
+    },
+    {
+      "name": "Trips",
+      "item": []
+    },
+    {
+      "name": "Evidence and Tickets",
+      "item": []
+    },
+    {
+      "name": "Decisions",
+      "item": []
+    },
+    {
+      "name": "Reports",
+      "item": []
+    },
+    {
+      "name": "Chat (Vera)",
+      "item": []
+    },
+    {
+      "name": "Failures",
+      "item": []
+    }
+  ]
+}

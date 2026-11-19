@@ -1,0 +1,21 @@
+digraph G {
+graph [fontname="Inter", fontsize=15, fontcolor="#111827", bgcolor="white", pad=0.3, nodesep=0.45, ranksep=0.5];
+node  [fontname="Inter", fontsize=14, fontcolor="#111827", shape=box, style="rounded,filled", fillcolor="#F9FAFB", color="#6B7280", penwidth=1.6, margin="0.22,0.12"];
+edge  [fontname="Inter", fontsize=12, fontcolor="#111827", color="#374151", penwidth=1.4, arrowsize=0.8];
+rankdir=TB; ranksep=0.38; nodesep=0.3;
+node [width=3.0];
+a [label=<<B>Employee message</B><BR/><FONT POINT-SIZE="12">"Bengaluru, 25 to 28 Nov - what to pack?"</FONT>>, fillcolor="#EFF6FF", color="#2563EB"];
+b [shape=diamond, style=filled, fillcolor="white", margin="0.05,0.05", label="Destination, start\nand end all given?", width=2.6];
+q [label="Vera asks for the missing item\n(no tool call)", fillcolor="#F5F3FF", color="#7C3AED", width=2.6];
+c [label="get_weather_forecast(destination, start, end)\nvalidate dates (<= 30 days)", fillcolor="#F5F3FF", color="#7C3AED"];
+g [label="Geocode with Open-Meteo\n(not found / ambiguous -> ask)", fillcolor="#F9FAFB", color="#6B7280"];
+h [label="Split dates: covered = today .. today + 15\nothers = uncovered", fillcolor="#F9FAFB", color="#6B7280"];
+k [shape=diamond, style=filled, fillcolor="white", margin="0.05,0.05", label="Any covered\ndate?", width=2.2];
+oo [label="FORECAST_OUT_OF_RANGE\n'Forecast not available', no values", fillcolor="#FFFBEB", color="#D97706", width=2.8];
+f [label="Forecast call for covered dates only\nvalues copied exactly; log the call", fillcolor="#F9FAFB", color="#6B7280"];
+v [label="Vera answer: summary + checklist + limitations\nnumbers checked against tool data", fillcolor="#ECFDF5", color="#059669"];
+x [label="Timeout / 5xx / 429 / bad JSON:\nsafe message + Retry, error logged,\nno invented forecast", fillcolor="#FEF2F2", color="#DC2626", width=3.0];
+a -> b; b -> q [label=" no"]; b -> c [label=" yes"]; c -> g -> h -> k; k -> oo [label=" no"]; k -> f [label=" yes"]; f -> v; oo -> v [style=dashed];
+g -> x [style=dotted]; f -> x [style=dotted];
+{rank=same; b; q} {rank=same; k; oo} {rank=same; f; x}
+}
