@@ -1,0 +1,28 @@
+digraph G {
+graph [fontname="Inter", fontsize=15, fontcolor="#111827", bgcolor="white", pad=0.3, nodesep=0.45, ranksep=0.5];
+node  [fontname="Inter", fontsize=14, fontcolor="#111827", shape=box, style="rounded,filled", fillcolor="#F9FAFB", color="#6B7280", penwidth=1.6, margin="0.22,0.12"];
+edge  [fontname="Inter", fontsize=12, fontcolor="#111827", color="#374151", penwidth=1.4, arrowsize=0.8];
+rankdir=TB; ranksep=0.38;
+node [width=3.2];
+a [label="1. Employee signs in (JWT)\nand creates a trip request", fillcolor="#EFF6FF", color="#2563EB"];
+b [label="2. Manager reviews the request", fillcolor="#ECFDF5", color="#059669"];
+r [label="Rejected (final)", fillcolor="#FEF2F2", color="#DC2626", width=1.8];
+c [label=<<B>3. Trip is Approved - Active</B>>, fillcolor="#ECFDF5", color="#059669", penwidth=2.2];
+v [label="4. Optional: asks Vera about the\nexpense policy or the weather\n(types destination + dates)", fillcolor="#F5F3FF", color="#7C3AED"];
+e [label="5. Employee raises a ticket in\nExpense Management (photo per line)", fillcolor="#EFF6FF", color="#2563EB"];
+f [label="6. Policy engine checks every line", fillcolor="#FFFBEB", color="#D97706"];
+g [label="Auto-approved", fillcolor="#FFFBEB", color="#D97706", width=1.8];
+h [label="7. Manager reviews photos,\napproves or rejects + comment", fillcolor="#ECFDF5", color="#059669", width=2.6];
+n [label="Rejected: employee raises a\nnew ticket on the same trip", fillcolor="#EFF6FF", color="#2563EB", width=2.6];
+i [label="8. Trip completed: manager after end date\nor system at start date + 90 days", fillcolor="#ECFDF5", color="#059669"];
+j [label="9. Manager views spending summary", fillcolor="#ECFDF5", color="#059669"];
+a -> b; b -> r [label=" reject"]; b -> c [label=" approve"]; c -> v [style=dashed]; c -> e; v -> e [style=invis];
+e -> f; f -> g [label=" no flags"]; f -> h [label=" any flag"]; h -> n [label=" reject"]; n -> f [style=dashed, constraint=false];
+g -> i; h -> i [label=" approve"]; i -> j;
+{rank=same; b; r} {rank=same; g; h}
+key [shape=plain, width=0, label=<<TABLE BORDER="1" COLOR="#D1D5DB" CELLBORDER="1" CELLSPACING="4" CELLPADDING="5" BGCOLOR="white">
+  <TR><TD BORDER="0"><B>Colour key</B></TD></TR>
+  <TR><TD BGCOLOR="#EFF6FF" COLOR="#2563EB">Employee</TD></TR><TR><TD BGCOLOR="#FFFBEB" COLOR="#D97706">System rule</TD></TR>
+  <TR><TD BGCOLOR="#ECFDF5" COLOR="#059669">Manager</TD></TR><TR><TD BGCOLOR="#F5F3FF" COLOR="#7C3AED">Vera (AI)</TD></TR></TABLE>>];
+{rank=same; a; key}
+}

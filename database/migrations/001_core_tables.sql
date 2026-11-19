@@ -1,0 +1,2 @@
+-- employees, travel_requests, trip_approvals (columns and CHECKs: Agile Spec v2.0 > Database design).
+-- Owner: Joyal (M1)  |  Spec: Agile Spec v2.0

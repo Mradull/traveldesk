@@ -1,0 +1,2 @@
+-- error_logs (Joyal); ai_call_logs, rag_call_logs, weather_tool_logs (Piyush).
+-- Owner: Joyal (M1) + Piyush (M2), see 'Shared files'  |  Spec: Agile Spec v2.0

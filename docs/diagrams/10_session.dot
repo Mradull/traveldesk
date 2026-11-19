@@ -1,0 +1,15 @@
+digraph G {
+graph [fontname="Inter", fontsize=15, fontcolor="#111827", bgcolor="white", pad=0.3, nodesep=0.45, ranksep=0.5];
+node  [fontname="Inter", fontsize=14, fontcolor="#111827", shape=box, style="rounded,filled", fillcolor="#F9FAFB", color="#6B7280", penwidth=1.6, margin="0.22,0.12"];
+edge  [fontname="Inter", fontsize=12, fontcolor="#111827", color="#374151", penwidth=1.4, arrowsize=0.8];
+rankdir=TB; ranksep=0.7; nodesep=1.0;
+st [shape=circle, label="", width=0.25, style=filled, fillcolor="#111827", color="#111827"];
+a [label=<<B>ACTIVE</B><BR/><FONT POINT-SIZE="11">memory = this session only</FONT>>, fillcolor="#ECFDF5", color="#059669", penwidth=2.4];
+c [label=<<B>CLOSED</B><BR/><FONT POINT-SIZE="11">X clicked, or replaced</FONT>>];
+x [label=<<B>EXPIRED</B><BR/><FONT POINT-SIZE="11">60 minutes with no message</FONT>>, fillcolor="#FEF2F2", color="#DC2626"];
+h [label=<<B>Kept in PostgreSQL</B><BR/><FONT POINT-SIZE="11">readable in Past chats,<BR/>never loaded into a new chat</FONT>>, fillcolor="#F9FAFB", color="#6B7280"];
+st -> a [label="  icon clicked:\n  new session_id"];
+a -> a [label=" each message =\n new conversation_id"];
+a -> c [label=" close"]; a -> x [label=" idle"]; c -> h; x -> h;
+{rank=same; c; x}
+}

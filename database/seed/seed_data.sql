@@ -1,0 +1,2 @@
+-- 4 users, 4 trips, 5 tickets, 8 expenses with dates relative to CURRENT_DATE (spec > Seed data).
+-- Owner: Joyal (M1)  |  Spec: Agile Spec v2.0

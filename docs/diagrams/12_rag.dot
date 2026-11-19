@@ -1,0 +1,14 @@
+digraph G {
+graph [fontname="Inter", fontsize=15, fontcolor="#111827", bgcolor="white", pad=0.3, nodesep=0.45, ranksep=0.5];
+node  [fontname="Inter", fontsize=14, fontcolor="#111827", shape=box, style="rounded,filled", fillcolor="#F9FAFB", color="#6B7280", penwidth=1.6, margin="0.22,0.12"];
+edge  [fontname="Inter", fontsize=12, fontcolor="#111827", color="#374151", penwidth=1.4, arrowsize=0.8];
+rankdir=LR; ranksep=0.45; nodesep=0.35;
+subgraph cluster_i { label=<<B>Setup: load the policy once</B>>; style="rounded"; color="#9CA3AF"; margin=12;
+  a [label="Policy\n.txt file"]; b [label="Split by\nrule ID"]; c [label="Embed\n(MiniLM)"]; e [shape=cylinder, label="policy_chunks\nREAL[] vectors", fillcolor="#ECFDF5", color="#059669"];
+  a -> b -> c -> e; }
+subgraph cluster_q { label=<<B>Only when the intent is POLICY</B>>; style="rounded"; color="#9CA3AF"; margin=12;
+  q [label="Policy\nquestion", fillcolor="#EFF6FF", color="#2563EB"]; t [label="search_expense_\npolicy tool", fillcolor="#F5F3FF", color="#7C3AED"]; s [label="Top 4 by cosine\n(>= 0.35)"]; g [label="Answer with\n[POL-x.y] citations", fillcolor="#F5F3FF", color="#7C3AED"];
+  q -> t -> s -> g; }
+e -> s [style=dashed, constraint=false];
+a -> q [style=invis];
+}

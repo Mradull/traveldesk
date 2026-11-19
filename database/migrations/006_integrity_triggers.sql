@@ -1,0 +1,3 @@
+-- Triggers: decided tickets/lines/evidence and approval rows immutable; expense_date >= trip created_on;
+-- tickets only on APPROVED + ACTIVE trips.
+-- Owner: Joyal (M1)  |  Spec: Agile Spec v2.0

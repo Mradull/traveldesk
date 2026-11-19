@@ -1,0 +1,20 @@
+digraph G {
+graph [fontname="Inter", fontsize=15, fontcolor="#111827", bgcolor="white", pad=0.3, nodesep=0.45, ranksep=0.5];
+node  [fontname="Inter", fontsize=14, fontcolor="#111827", shape=box, style="rounded,filled", fillcolor="#F9FAFB", color="#6B7280", penwidth=1.6, margin="0.22,0.12"];
+edge  [fontname="Inter", fontsize=12, fontcolor="#111827", color="#374151", penwidth=1.4, arrowsize=0.8];
+rankdir=LR; ranksep=0.6; nodesep=0.35; compound=true;
+t [label=<<B>TRP-00002</B><BR/><FONT POINT-SIZE="12">same trip_id, Approved - Active</FONT>>, fillcolor="#EFF6FF", color="#2563EB"];
+subgraph cluster_old { label=<<B>Rejected ticket</B> (read-only, kept for audit)>; style="rounded,filled"; fillcolor="#FEF2F2"; color="#DC2626"; margin=12;
+  o1 [label=<<B>TKT-00004</B><BR/><FONT POINT-SIZE="11">status REJECTED</FONT>>, fillcolor="white", color="#DC2626"];
+  o2 [label=<<B>EXP-00007</B><BR/><FONT POINT-SIZE="11">AIRFARE 4,200</FONT>>, fillcolor="white", color="#DC2626"];
+  o3 [label=<<B>EVD-00007</B><BR/><FONT POINT-SIZE="11">blurred photo</FONT>>, fillcolor="white", color="#DC2626"];
+  o4 [label=<<B>Manager decision</B><BR/><FONT POINT-SIZE="11">INSUFFICIENT_EVIDENCE<BR/>"Photo is blurred..."</FONT>>, fillcolor="white", color="#DC2626"];
+  o1 -> o2 -> o3; o1 -> o4; }
+subgraph cluster_new { label=<<B>Replacement ticket</B> (all new ids, full validation)>; style="rounded,filled"; fillcolor="#ECFDF5"; color="#059669"; margin=12;
+  n1 [label=<<B>TKT-00006</B><BR/><FONT POINT-SIZE="11">replacement_of_ticket_id = 4</FONT>>, fillcolor="white", color="#059669"];
+  n2 [label=<<B>EXP-00009</B><BR/><FONT POINT-SIZE="11">AIRFARE 4,200</FONT>>, fillcolor="white", color="#059669"];
+  n3 [label=<<B>EVD-00009</B><BR/><FONT POINT-SIZE="11">new clear photo upload</FONT>>, fillcolor="white", color="#059669"];
+  n1 -> n2 -> n3; }
+t -> o1 [lhead=cluster_old]; t -> n1 [lhead=cluster_new];
+n1 -> o1 [style=dashed, constraint=false, color="#6B7280"];
+}

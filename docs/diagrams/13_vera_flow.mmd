@@ -1,0 +1,27 @@
+sequenceDiagram
+  autonumber
+  actor E as Employee
+  participant UI as Vera window
+  participant API as Chat service
+  participant R as Intent router
+  participant DB as PostgreSQL
+  participant AI as LLM
+  participant T as Tool (RAG or weather)
+  E->>UI: Asks a question
+  UI->>API: POST message (Bearer JWT)
+  API->>DB: Check owner, ACTIVE, idle < 60 min
+  Note over API: Input guardrails
+  API->>DB: New conversation_id, save human_message
+  API->>R: Classify intent
+  R-->>API: POLICY / WEATHER / both / out of scope
+  API->>DB: Load THIS session's history only
+  API->>AI: History + message + allowed tool(s)
+  AI-->>API: ai_tool_call (or a clarification answer)
+  API->>T: Run tool (no business data)
+  T-->>API: ToolResult
+  API->>DB: Save tool call, result and tool log
+  API->>AI: Tool result
+  AI-->>API: Final answer
+  Note over API: Output guardrails (grounding, citations)
+  API->>DB: Save ai_response, AI log, last activity
+  API-->>UI: Reply + citations / weather card

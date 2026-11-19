@@ -1,0 +1,23 @@
+digraph G {
+graph [fontname="Inter", fontsize=15, fontcolor="#111827", bgcolor="white", pad=0.3, nodesep=0.45, ranksep=0.5];
+node  [fontname="Inter", fontsize=14, fontcolor="#111827", shape=box, style="rounded,filled", fillcolor="#F9FAFB", color="#6B7280", penwidth=1.6, margin="0.22,0.12"];
+edge  [fontname="Inter", fontsize=12, fontcolor="#111827", color="#374151", penwidth=1.4, arrowsize=0.8];
+rankdir=TB; ranksep=0.42;
+m [label=<<B>main.py</B><BR/><FONT POINT-SIZE="12">middleware: request + correlation id, error handler</FONT>>, width=4];
+subgraph cluster_b { label=<<B>Business side</B>>; style="rounded"; color="#9CA3AF"; margin=10;
+  br [label=<<B>routers/</B><BR/><FONT POINT-SIZE="11">auth, trips, evidence, tickets,<BR/>expenses, reports, policy, health</FONT>>, fillcolor="#EFF6FF", color="#2563EB"];
+  bs [label=<<B>services/</B><BR/><FONT POINT-SIZE="11">auth, trip, evidence, ticket,<BR/>approval, report, scheduler jobs</FONT>>];
+  pe [label="policy_engine\n(pure rules)", fillcolor="#FFFBEB", color="#D97706"];
+  bp [label=<<B>business repositories</B><BR/><FONT POINT-SIZE="11">employee, trip, ticket, expense,<BR/>evidence, approval, report</FONT>>, fillcolor="#ECFDF5", color="#059669"];
+  br -> bs -> pe; bs -> bp; }
+subgraph cluster_c { label=<<B>Vera side (isolated)</B>>; style="rounded"; color="#7C3AED"; margin=10;
+  cr [label=<<B>routers/chat.py</B><BR/><FONT POINT-SIZE="11">Employee role only</FONT>>, fillcolor="#F5F3FF", color="#7C3AED"];
+  cs [label=<<B>chat/</B><BR/><FONT POINT-SIZE="11">session manager, intent router,<BR/>guardrails, context, tools</FONT>>, fillcolor="#F5F3FF", color="#7C3AED"];
+  rg [label="rag/\nretriever", fillcolor="#F5F3FF", color="#7C3AED"]; ws [label="services/\nweather_service", fillcolor="#F5F3FF", color="#7C3AED"]; ll [label="ai/llm_client", fillcolor="#F5F3FF", color="#7C3AED"];
+  cp [label=<<B>chat_repo + log repos</B><BR/><FONT POINT-SIZE="11">chat_*, rag/weather/ai logs</FONT>>, fillcolor="#ECFDF5", color="#059669"];
+  cr -> cs; cs -> rg; cs -> ws; cs -> ll; cs -> cp; rg -> cp [style=invis]; }
+db [label=<<B>core/database.py</B> to local PostgreSQL>, width=4];
+m -> br; m -> cr; bp -> db; cp -> db; rg -> db;
+bs -> cs [style=invis];
+cs -> bp [style=dashed, color="#DC2626", fontcolor="#DC2626", label=" forbidden\n (import test fails)", constraint=false, arrowhead=tee];
+}

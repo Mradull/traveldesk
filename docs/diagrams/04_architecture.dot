@@ -1,0 +1,26 @@
+digraph G {
+graph [fontname="Inter", fontsize=15, fontcolor="#111827", bgcolor="white", pad=0.3, nodesep=0.45, ranksep=0.5];
+node  [fontname="Inter", fontsize=14, fontcolor="#111827", shape=box, style="rounded,filled", fillcolor="#F9FAFB", color="#6B7280", penwidth=1.6, margin="0.22,0.12"];
+edge  [fontname="Inter", fontsize=12, fontcolor="#111827", color="#374151", penwidth=1.4, arrowsize=0.8];
+rankdir=TB; compound=true; ranksep=0.55;
+subgraph cluster_ui { label=<<B>React</B>  (one app, two views chosen by the JWT role)>; style="rounded,filled"; fillcolor="#EFF6FF"; color="#2563EB"; margin=12;
+  u1 [label="Employee view\nMy Trips, Trip Detail,\nExpense Management", fillcolor="white", color="#2563EB"];
+  u2 [label="Vera chat\n(My Trips and Expense\nManagement only)", fillcolor="white", color="#7C3AED"];
+  u3 [label="Manager view\nApprovals, Ticket review,\nSpending Summary", fillcolor="white", color="#059669"];
+  {rank=same; u1 -> u2 -> u3 [style=invis];} }
+subgraph cluster_api { label=<<B>FastAPI</B>  (verifies JWT, role, ownership on every request)<BR/><FONT COLOR="#DC2626" POINT-SIZE="12">Vera has no path to business repositories</FONT>>; style="rounded,filled"; fillcolor="#F9FAFB"; color="#6B7280"; margin=12;
+  b1 [label=<<B>Business API</B><BR/><FONT POINT-SIZE="12">auth, trips, evidence, tickets,<BR/>decisions, reports</FONT>>, fillcolor="white"];
+  c1 [label=<<B>Chat API</B><BR/><FONT POINT-SIZE="12">Employee role only</FONT>>, fillcolor="#F5F3FF", color="#7C3AED"];
+  b2 [label="Business services\n+ policy engine", fillcolor="white"];
+  c2 [label="Vera chat service\n(isolated)", fillcolor="#F5F3FF", color="#7C3AED"];
+  b3 [label="Business\nrepositories", fillcolor="white"];
+  c3 [label="Chat repo, RAG,\nWeatherService", fillcolor="#F5F3FF", color="#7C3AED"];
+  b1 -> b2 -> b3; c1 -> c2 -> c3;
+  b2 -> c3 [style=invis]; }
+db [shape=cylinder, label=<<B>PostgreSQL (local)</B><BR/><FONT POINT-SIZE="12">business, evidence, chat, policy chunks, logs<BR/>administered with pgAdmin</FONT>>, fillcolor="#ECFDF5", color="#059669"];
+om [label="Open-Meteo\nweather API", fillcolor="#FEF2F2", color="#DC2626"];
+ai [label="Hosted LLM\nOpenRouter Nemotron", fillcolor="#FEF2F2", color="#DC2626"];
+u1 -> b1 [label=" Bearer JWT"]; u3 -> b1; u2 -> c1 [label=" Bearer JWT"];
+b3 -> db; c3 -> db; c3 -> om; c2 -> ai;
+{rank=same; om; ai}
+}

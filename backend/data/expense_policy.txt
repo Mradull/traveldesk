@@ -1,0 +1,538 @@
+====================================================================================
+VERIDIAN GLOBAL SERVICES PVT. LTD.
+TRAVEL & EXPENSE POLICY AND TRAVELDESK PLATFORM GUIDE
+====================================================================================
+Document ID   : VGS-FIN-TE-001
+Version       : 2.0
+Effective from: 01 December 2026
+Owner         : Finance Operations, Veridian Global Services
+Applies to    : All employees and travel approvers using the TravelDesk platform
+Currency      : All amounts are in Indian Rupees (INR)
+
+Note: Veridian Global Services is a fictional company created for the EY AI & Data
+capstone (Project 04). All names, numbers and contacts are illustrative.
+
+HOW TO READ THIS DOCUMENT
+Every rule has an ID in square brackets, for example [POL-6.2]. The TravelDesk
+assistant "Vera" quotes these IDs when it answers policy questions, so you can look
+the rule up yourself. The numeric limits in Sections 3, 4, 6 and 7 are also
+configured in the TravelDesk backend. If Finance changes a number here, the same
+number must be changed in the backend configuration so that the system and the
+document never disagree.
+
+------------------------------------------------------------------------------------
+SECTION 1 - PURPOSE AND SCOPE
+------------------------------------------------------------------------------------
+[POL-1.1] Purpose
+This policy explains how employees request business travel, how travel requests are
+approved and closed, how travel expenses are claimed, and which expense claims are
+approved automatically and which need a manager's review.
+
+[POL-1.2] Who this policy applies to
+This policy applies to every employee of Veridian Global Services who travels for
+business, and to every line manager who approves travel requests and expense claims.
+
+[POL-1.3] What this policy does not cover
+TravelDesk does not book flights or hotels, does not show live fares, does not issue
+cash advances, does not settle foreign currency, and does not score travel safety.
+Bookings are made through the approved travel agency; TravelDesk only records the
+trip request and the expenses that result from it.
+
+------------------------------------------------------------------------------------
+SECTION 2 - ROLES AND RESPONSIBILITIES
+------------------------------------------------------------------------------------
+[POL-2.1] Employee
+The employee submits a travel request before travelling, photographs the receipt for
+every expense, raises expense tickets only while the trip is "Approved - Active",
+and reads the manager's comment on any rejected ticket. Employees cannot approve
+their own requests and cannot complete a trip.
+
+[POL-2.2] Travel approver (line manager)
+The line manager reviews the travel requests of their direct reports and approves or
+rejects them, reviews every expense ticket that the system flags under Section 9,
+records each decision with a review comment, and marks finished trips as completed.
+Managers decide from the trip details, the receipt photos, the policy flags and the
+decision history. Weather information and the assistant Vera are not part of the
+manager's view.
+
+[POL-2.3] TravelDesk system
+TravelDesk applies the rules in this document in the same way every time. It checks
+each expense line, records policy flags, routes each ticket either to automatic
+approval or to the manager, completes trips automatically 90 days after their start
+date, and keeps a permanent history of every decision.
+
+[POL-2.4] Vera, the AI travel assistant
+Vera is the AI chatbot inside TravelDesk. Vera can explain this policy, explain how
+to use TravelDesk, and give a weather forecast and packing advice for a destination
+and dates that you type into the chat. Vera cannot see your trips, tickets, expenses,
+receipts or any other TravelDesk record. Vera's answers are informational only: Vera
+cannot approve, reject, submit, edit or book anything and cannot promise an outcome.
+
+------------------------------------------------------------------------------------
+SECTION 3 - TRAVEL REQUESTS
+------------------------------------------------------------------------------------
+[POL-3.1] Information required in a travel request
+Every travel request must include the destination city, the travel start date, the
+travel end date and the business purpose. The employee's name and department are
+taken from the employee's TravelDesk profile. When the request is saved, TravelDesk
+gives it a trip ID such as TRP-00012.
+
+[POL-3.2] Travel date rules
+  - The start date must be today or a future date. It cannot be in the past.
+  - The end date must be later than the start date.
+  - A single trip can last at most 30 days, counting both the start and end dates.
+  - A trip cannot start more than one year (365 days) from today.
+A request that breaks any of these rules is not saved; TravelDesk shows the error
+under the date field.
+
+[POL-3.3] Destination rules
+The destination must be a real city or town name of 2 to 100 characters, for example
+"Mumbai" or "Singapore". Letters, spaces, commas, full stops, apostrophes, brackets
+and hyphens are allowed.
+
+[POL-3.4] Business purpose
+The purpose must be 10 to 500 characters and must describe the business reason for
+the trip, for example "Client workshop for the FY27 audit planning".
+
+[POL-3.5] Editing a request before approval
+While a request is "In Progress" (waiting for the manager), the employee can edit the
+destination, dates and purpose. The same date rules apply. Once the manager has
+approved or rejected the request, it can no longer be edited.
+
+[POL-3.6] Manager decision on a travel request
+The manager either approves or rejects the request. A rejection must include a review
+comment of at least 10 characters explaining why. An approval comment is optional. An
+approved trip becomes "Approved - Active" immediately. A manager cannot approve a
+trip whose start date was more than 90 days ago.
+
+[POL-3.7] Rejected requests
+A rejected request is final and cannot be reopened. If the trip is still needed, the
+employee submits a new travel request with the corrected details.
+
+------------------------------------------------------------------------------------
+SECTION 4 - TRIP STATUSES
+------------------------------------------------------------------------------------
+[POL-4.1] Trip status list
+  In Progress          : submitted, waiting for the manager's decision.
+  Rejected             : the manager rejected the request. No expenses can be claimed.
+  Approved - Active    : approved. Expense tickets can be raised.
+  Approved - Completed : the trip is closed. No new tickets and no new expenses.
+
+[POL-4.2] Active trips
+Only trips that are "Approved - Active" accept new expense tickets. You can raise
+tickets before the trip starts (for example for a flight booked in advance), during
+the trip and after it, until the trip is completed.
+
+[POL-4.3] How a trip becomes completed
+A trip becomes "Approved - Completed" in one of two ways:
+  a) your line manager marks it completed, on or after the trip end date, or
+  b) TravelDesk completes it automatically 90 days after the trip start date.
+Employees cannot change the status of a trip; there is no "complete" button for
+employees. The trip page shows the automatic completion date from the day the trip is
+created. Submit your claims before that date.
+
+[POL-4.4] Completed trips
+A completed trip cannot receive new tickets or new expenses and cannot be reopened.
+Tickets submitted before completion are still reviewed by the manager as normal. The
+trip page shows who completed the trip (the manager's name, or "System") and when.
+
+------------------------------------------------------------------------------------
+SECTION 5 - EXPENSE TICKETS
+------------------------------------------------------------------------------------
+[POL-5.1] What an expense ticket is
+An expense ticket is one claim submission for one trip. A ticket contains one or more
+expense lines. Each expense line is one expense with its own expense ID and its own
+receipt photo.
+
+[POL-5.2] When a ticket can be raised
+A ticket can be raised only for your own trip, and only while that trip is
+"Approved - Active".
+
+[POL-5.3] Information required for each expense line
+Each expense line must have: the expense category (see [POL-6.1]), the amount in INR,
+the date the expense was incurred (see Section 8), a short description of 3 to 300
+characters, and a photo of the receipt (see [POL-7.1]). The invoice number printed on
+the receipt is optional ([POL-7.2]).
+
+[POL-5.4] Number of lines per ticket
+A ticket must contain at least 1 and at most 20 expense lines.
+
+[POL-5.5] Forgotten expenses
+If you forget some expenses, raise another ticket for the same trip with the missing
+expenses. A trip can have any number of tickets while it is "Approved - Active".
+
+[POL-5.6] IDs shown in TravelDesk
+Trips are shown as TRP-xxxxx, tickets as TKT-xxxxx, expense lines as EXP-xxxxx and
+receipt photos (evidence) as EVD-xxxxx. Quote these IDs when contacting Finance.
+
+[POL-5.7] Submitted tickets cannot be changed
+A ticket cannot be edited, withdrawn or resubmitted after submission. Once a ticket is
+approved, auto-approved or rejected, it is final and read-only, including its expense
+lines, its receipt photos and the manager's decision and comment.
+
+[POL-5.8] Correcting a rejected ticket
+If a ticket is rejected, read the manager's reason and comment, then raise a NEW
+ticket for the same trip while the trip is still "Approved - Active". The new ticket:
+  - belongs to the same trip ID,
+  - gets a new ticket ID and new expense IDs,
+  - needs every receipt photo uploaded again; each upload gets a new evidence ID.
+Nothing is copied from the rejected ticket. The new ticket is checked from the start
+like any other ticket. The rejected ticket stays unchanged for audit. Each rejected
+ticket can be replaced by one new ticket; TravelDesk links the two so you can see the
+history.
+
+------------------------------------------------------------------------------------
+SECTION 6 - EXPENSE CATEGORIES AND LIMITS
+------------------------------------------------------------------------------------
+[POL-6.1] Allowed expense categories
+Only these five categories are allowed:
+  AIRFARE          : flights and flight changes (economy class).
+  LODGING          : hotel or serviced-apartment stays.
+  MEALS            : meals while travelling.
+  GROUND_TRANSPORT : taxis, cabs, trains, buses, metro and airport transfers.
+  INCIDENTALS      : small business costs such as laundry on trips longer than
+                     4 days, printing, or local SIM cards.
+
+[POL-6.2] Review thresholds per expense line
+Any single expense line above its category threshold needs a manager's review.
+  Category           Review threshold per line (INR)
+  AIRFARE            20,000
+  LODGING             7,500
+  MEALS               1,500
+  GROUND_TRANSPORT    3,000
+  INCIDENTALS         1,000
+An amount exactly equal to the threshold does not need review. An amount above the
+threshold is not automatically rejected; it is sent to the manager with an
+"Over threshold" flag.
+
+[POL-6.3] Maximum amount per line
+No single expense line can be more than INR 2,00,000. TravelDesk will not accept a
+line above this amount. Split genuine large costs into separate lines (for example
+one lodging line per hotel invoice), each with its own receipt photo.
+
+[POL-6.4] Amount format
+Amounts must be greater than zero, in INR, with at most two decimal places.
+
+------------------------------------------------------------------------------------
+SECTION 7 - RECEIPT PHOTOS (EVIDENCE)
+------------------------------------------------------------------------------------
+[POL-7.1] A receipt photo is required for every expense line
+Every expense line needs a clear photo of its receipt, whatever the amount. A ticket
+with any line that has no photo cannot be submitted. Accepted files: JPEG, PNG or
+WEBP images up to 5 MB, one photo per line. The whole receipt must be readable,
+including the amount, date and seller. Each uploaded photo gets an evidence ID.
+
+[POL-7.2] Invoice number (optional)
+You may also type the invoice or bill number printed on the receipt, 3 to 50
+characters, using letters, numbers, hyphens, underscores or slashes. Examples:
+"INV-88231", "IXR/2026/0045". It helps Finance and the duplicate check. Keep the
+original receipt for audit.
+
+[POL-7.3] Lost receipts
+Expenses without a receipt photo cannot be claimed in TravelDesk. If a receipt is
+lost, contact Finance Operations before raising a ticket.
+
+[POL-7.4] Duplicate receipts
+The same receipt cannot be claimed twice. If the same photo file, or the same invoice
+number, was already used on another expense line of yours that was not rejected, the
+new line is flagged "Duplicate receipt" and goes to the manager. A receipt photo from
+a rejected ticket may be uploaded again for its replacement ticket ([POL-5.8]). One
+uploaded photo can be attached to only one expense line.
+
+[POL-7.5] Who can see receipt photos
+Receipt photos are stored privately in TravelDesk. Only the employee who uploaded them
+and the manager reviewing the ticket can open them. Cover full card numbers before you
+take the photo.
+
+------------------------------------------------------------------------------------
+SECTION 8 - EXPENSE DATES
+------------------------------------------------------------------------------------
+[POL-8.1] Expense date cannot be in the future
+The expense date is the date the money was spent. TravelDesk will not accept a
+future expense date.
+
+[POL-8.2] Expense date cannot be before the trip was created
+An expense must be dated on or after the day its trip ID was created. Expenses from
+before the trip request existed are rejected, and TravelDesk shows the error under
+the expense date field ("Expense date is before this trip was created"). Expenses
+dated before the trip starts (for example an advance flight booking) or during or
+after the trip are accepted, as long as they are on or after the creation date and
+the trip is still "Approved - Active".
+
+------------------------------------------------------------------------------------
+SECTION 9 - APPROVAL ROUTING (DETERMINISTIC RULES)
+------------------------------------------------------------------------------------
+[POL-9.1] Policy flags
+TravelDesk checks every expense line against these two rules:
+  Flag code                  Rule                                           Policy
+  OVER_THRESHOLD             Amount above the category threshold            [POL-6.2]
+  DUPLICATE_RECEIPT          Same photo or invoice number already claimed   [POL-7.4]
+Flags never block submission; they send the ticket to the manager. Problems that DO
+block submission are shown as errors instead: a missing receipt photo ([POL-7.1]), an
+expense date before the trip was created ([POL-8.2]) or in the future ([POL-8.1]),
+and the amount and format rules in Section 6.
+
+[POL-9.2] Automatic approval
+If no line in a ticket has any flag, the whole ticket is approved automatically by
+the system at submission. Its status becomes "Auto-approved" and the decision is
+recorded with the reviewer "SYSTEM".
+
+[POL-9.3] Manager review
+If any line in a ticket has at least one flag, the whole ticket goes to the
+employee's line manager with the status "Pending". The manager sees every line, its
+receipt photo, its flags, and the trip details.
+
+[POL-9.4] Manager decision on a ticket
+The manager approves or rejects the whole ticket. A rejection must include:
+  - a reason: missing evidence, insufficient evidence (for example a blurred photo),
+    incorrect evidence, unclear expense purpose, policy concern, or other; and
+  - a review comment of at least 10 characters explaining what is wrong.
+An approval comment is optional but recommended when approving a flagged line. Once
+recorded, the decision and comment are final and cannot be changed.
+
+[POL-9.5] Decision history
+Every decision on a trip or ticket, whether by a manager or by the system, is stored
+permanently with the reviewer, decision, reason, comment and time. Decisions are
+never overwritten or deleted.
+
+[POL-9.6] AI has no role in approvals
+Approval decisions are made only by these rules and by managers. Vera's answers are
+never used to approve or reject a trip or an expense.
+
+------------------------------------------------------------------------------------
+SECTION 10 - NON-REIMBURSABLE ITEMS
+------------------------------------------------------------------------------------
+[POL-10.1] Items that are never reimbursed
+Alcohol; personal entertainment, spa or gym charges; hotel minibar; traffic or
+parking fines; flight or hotel upgrades paid personally; travel insurance bought
+personally; costs of personal days added to a business trip; replacement of lost
+personal items. Managers should reject tickets that include these items with the
+reason "policy concern".
+
+------------------------------------------------------------------------------------
+SECTION 11 - CLAIM DEADLINE
+------------------------------------------------------------------------------------
+[POL-11.1] Claim deadline
+All expense tickets for a trip must be raised while the trip is "Approved - Active":
+at the latest 90 days after the trip start date, or earlier if your manager completes
+the trip after it ends. The trip page shows the automatic completion date.
+
+------------------------------------------------------------------------------------
+SECTION 12 - WEATHER GUIDANCE FROM VERA
+------------------------------------------------------------------------------------
+[POL-12.1] How to get weather information
+Weather is available only by asking Vera in the chat. Tell Vera the destination, the
+start date and the end date, for example: "I am travelling to Bengaluru from 25
+November to 28 November. What will the weather be?" If anything is missing or
+unclear, Vera asks for it before checking. Vera does not take these details from your
+trips; you always type them.
+
+[POL-12.2] Weather source
+Vera gets forecasts from the Open-Meteo public weather service. Every weather answer
+shows the place Vera found, the source, the dates covered and the time the forecast
+was retrieved. Vera uses only these values: weather condition, minimum and maximum
+temperature, chance of rain, rain amount and maximum wind speed.
+
+[POL-12.3] Forecast range
+Open-Meteo forecasts cover today and the next 15 days (16 days in total). For dates
+outside this range, or dates in the past, Vera says "Forecast not available" for those
+dates and gives no temperatures, rain or wind values and no weather-specific packing
+advice for them. Ask again closer to your travel date.
+
+[POL-12.4] Packing and precaution advice
+For dates with a forecast, Vera can suggest clothing, packing and precautions that
+follow from the returned values, for example an umbrella when rain is forecast or
+warm clothing when low temperatures are forecast. Vera never invents conditions or
+warnings that the forecast does not show.
+
+[POL-12.5] Weather advice is informational only
+Weather guidance is a suggestion, not a safety assessment and not a travel approval.
+Always check official government travel advisories and your client's site rules
+before you travel.
+
+------------------------------------------------------------------------------------
+SECTION 13 - PRIVACY AND USE OF THE AI ASSISTANT
+------------------------------------------------------------------------------------
+[POL-13.1] Do not share sensitive personal data in chat
+Do not type card numbers, bank details, PAN, Aadhaar, passport numbers or phone
+numbers into the chat. TravelDesk masks such data automatically before storing it or
+sending it to the AI model.
+
+[POL-13.2] Chat sessions
+Each time you open Vera, a new chat starts. Vera remembers the conversation only
+within that chat. Closing the chat window ends it, and a chat also ends automatically
+after 60 minutes without a message. A new chat starts with no memory of earlier
+chats: give the destination and dates again if you need weather.
+
+[POL-13.3] Chat history and records
+Ended chats are kept. You can read your own past chats in Vera's "Past chats" list,
+but you cannot continue them. Chats are stored for audit, troubleshooting and quality
+review. Nobody else can open your chats in TravelDesk.
+
+[POL-13.4] What Vera can and cannot do
+Vera can answer policy and TravelDesk how-to questions and check the weather for a
+destination and dates you provide. Vera cannot see your trips, tickets, expenses or
+receipts, cannot see other employees' data, cannot approve or reject anything,
+cannot submit or edit trips or tickets, cannot book travel, and cannot promise that
+an expense will be reimbursed.
+
+[POL-13.5] Where Vera is available
+The Vera chat icon appears only on the employee pages "My Trips" and "Expense
+Management". Vera is not available to managers.
+
+------------------------------------------------------------------------------------
+SECTION 14 - TRAVELDESK PLATFORM GUIDE
+------------------------------------------------------------------------------------
+[GUIDE-1] Signing in
+Open TravelDesk and sign in with your company email and password. Your session lasts
+60 minutes; after that, TravelDesk asks you to sign in again. Employees see "My
+Trips", "Create Trip" and "Expense Management". Managers see "Approvals" and
+"Spending Summary".
+
+[GUIDE-2] Creating a travel request
+Go to "Create Trip". Enter the destination, start date, end date and business
+purpose, then click "Submit request". The new trip appears with its TRP ID and the
+status "In Progress".
+
+[GUIDE-3] Viewing your trips
+Go to "My Trips". Every trip is listed with its ID, destination, dates, status and
+automatic completion date. Use the filters "Upcoming", "Past" and "All". Click a trip
+to open its details.
+
+[GUIDE-4] Editing a trip before approval
+Open a trip that is "In Progress" and click "Edit". Change the details and save.
+
+[GUIDE-5] Expense Management
+Go to "Expense Management" to see all your tickets for all trips, with their status.
+From here you can raise a ticket for any "Approved - Active" trip, open a ticket, and
+start a replacement for a rejected ticket.
+
+[GUIDE-6] Raising an expense ticket
+In Expense Management (or from an "Approved - Active" trip), click "Raise ticket" and
+choose the trip. Add one line per expense: category, amount, expense date,
+description, a photo of the receipt, and optionally the invoice number. Each photo
+uploads as soon as you choose it, shows a preview and gets an EVD ID. Click "Add line"
+for more lines, then "Submit ticket". "Submit ticket" stays disabled until every line
+has a photo. TravelDesk then shows the ticket ID, an expense ID for each line, any
+policy flags, and whether the ticket was auto-approved or sent to your manager.
+
+[GUIDE-7] Adding forgotten expenses
+If you missed an expense, raise another ticket on the same trip ([POL-5.5]).
+
+[GUIDE-8] Tracking ticket status
+In Expense Management or on the trip page, each ticket shows its status:
+Auto-approved, Pending, Approved or Rejected. Open a ticket to see its lines, receipt
+photos, flags, and the manager's decision, reason and comment.
+
+[GUIDE-9] When a ticket is rejected
+Open the rejected ticket and read the reason and comment. Click "Create new ticket".
+TravelDesk opens a new, empty ticket for the same trip, linked to the rejected one.
+Add the lines again and upload every receipt photo again, then submit ([POL-5.8]).
+The rejected ticket cannot be edited or resubmitted.
+
+[GUIDE-10] Completing a trip
+Employees cannot complete a trip. When you have claimed everything, tell your
+manager, who can mark the trip completed after it ends. Otherwise TravelDesk completes
+it automatically 90 days after the trip start date ([POL-4.3]).
+
+[GUIDE-11] Using Vera
+On "My Trips" or "Expense Management", click the chat icon at the bottom right. Ask
+about the expense policy, how to use TravelDesk, or the weather for a destination and
+dates. Press Enter to send. Vera remembers what you said earlier in the same chat.
+Click the X at the top of the window to end the chat; opening it again starts a new
+chat. Use "Past chats" in the window to read your earlier chats.
+
+[GUIDE-12] Managers: approving trip requests
+Go to "Approvals" and open the "Trip requests" tab. Open a request, review the trip
+details (employee, destination, dates, purpose), then click "Approve" or "Reject".
+A rejection needs a review comment.
+
+[GUIDE-13] Managers: reviewing expense tickets
+Go to "Approvals" and open the "Expense tickets" tab. Each pending ticket shows its
+lines, receipt photos and policy flags. Click "Approve" or "Reject". To reject, choose
+a reason and write a review comment. Your decision and comment are final and appear
+in the ticket history.
+
+[GUIDE-14] Managers: completing trips
+Go to "Approvals" and open the "Trips to complete" tab. It lists your team's active
+trips whose end date has passed, with the number of tickets still pending and the
+automatic completion date. Click "Mark completed" to close a trip.
+
+[GUIDE-15] Managers: spending summary
+Go to "Spending Summary" to see spending per trip, spending per category, and the
+list of flagged expenses still waiting for a decision.
+
+[GUIDE-16] Common messages and what to do
+  "Incorrect email or password"   : check both and try again.
+  "Session expired"               : sign in again (sessions last 60 minutes).
+  "Trip is not active"            : tickets can only be raised on Approved - Active trips.
+  "Trip is completed"             : no more tickets or expenses can be added to it.
+  "Trip can no longer be edited"  : the manager has already decided on the request.
+  "Expense date is before this trip was created" : change the date or claim it elsewhere.
+  "Receipt photo required"        : add a photo to every line before submitting.
+  "File type not allowed"         : upload a JPEG, PNG or WEBP photo.
+  "File too large"                : the photo must be 5 MB or smaller.
+  "Ticket is read-only"           : decided tickets cannot change; raise a new ticket.
+  "Forecast not available"        : the dates are outside the 16-day forecast range.
+  "Destination not found"         : check the spelling of the city name.
+  "Which place did you mean?"     : add the state or country, e.g. "Hyderabad, India".
+  "Weather service unavailable"   : try again later; nothing else is affected.
+  "Assistant unavailable"         : the AI service is down; all other features work.
+  "Chat ended"                    : a new chat starts automatically.
+
+------------------------------------------------------------------------------------
+SECTION 15 - FREQUENTLY ASKED QUESTIONS
+------------------------------------------------------------------------------------
+[FAQ-1] My dinner cost INR 1,800. Will it be approved?
+It is above the MEALS threshold of INR 1,500 ([POL-6.2]), so the ticket goes to your
+manager for review. It is not rejected automatically. The manager decides.
+
+[FAQ-2] I lost a receipt. Can I still claim?
+Not in TravelDesk: every expense line needs a receipt photo ([POL-7.1]). Contact
+Finance Operations about a lost receipt before raising a ticket ([POL-7.3]).
+
+[FAQ-3] Can I claim my flight before the trip starts?
+Yes, if the trip is "Approved - Active" and the flight was paid on or after the day
+you created the trip request ([POL-8.2], [POL-4.2]).
+
+[FAQ-4] My ticket was rejected. What now?
+Read the reason and comment, then create a new ticket for the same trip with all lines
+and receipt photos again ([POL-5.8], [GUIDE-9]). The rejected ticket cannot be edited.
+
+[FAQ-5] Can I change a trip after it was approved?
+No. Approved trips cannot be edited ([POL-3.5]). If your plans change, raise a new
+travel request with the correct details and tell your manager which trip it replaces.
+
+[FAQ-6] Why does Vera say "Forecast not available"?
+Your dates are outside the forecast range of today plus 15 days ([POL-12.3]). Ask
+again closer to your travel date.
+
+[FAQ-7] Can Vera approve my expense or check my ticket status?
+No. Vera cannot see your tickets and cannot approve anything ([POL-9.6], [POL-13.4]).
+Check the status in Expense Management.
+
+[FAQ-8] Is a trip of 35 days allowed?
+No. The maximum trip length is 30 days ([POL-3.2]). Split it into two requests.
+
+[FAQ-9] Can I mark my own trip as completed?
+No. Only your line manager can complete a trip, or TravelDesk completes it 90 days
+after the trip start date ([POL-4.3]).
+
+[FAQ-10] How long do I have to claim my expenses?
+While the trip is "Approved - Active": at the latest until 90 days after the trip
+start date, or until your manager completes the trip ([POL-11.1]).
+
+[FAQ-11] Can I request a trip for next year?
+Yes, if it starts no more than one year (365 days) from today ([POL-3.2]).
+
+[FAQ-12] Does Vera remember my last chat?
+No. Each chat starts fresh ([POL-13.2]). You can read old chats in "Past chats".
+
+------------------------------------------------------------------------------------
+SECTION 16 - CONTACTS
+------------------------------------------------------------------------------------
+Finance Operations (claims and reimbursement): finance.ops@veridian.example
+Travel Desk (bookings through the travel agency): traveldesk@veridian.example
+TravelDesk platform support: it.support@veridian.example
+
+==================================== END ===========================================

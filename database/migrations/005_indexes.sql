@@ -1,0 +1,2 @@
+-- All indexes listed in Agile Spec v2.0 > Indexes, integrity and immutability.
+-- Owner: Joyal (M1)  |  Spec: Agile Spec v2.0

@@ -1,0 +1,2 @@
+-- evidence_code_seq, expense_evidence, evidence_files, expense_tickets, expenses, policy_flags, ticket_approvals.
+-- Owner: Joyal (M1)  |  Spec: Agile Spec v2.0

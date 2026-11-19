@@ -1,0 +1,26 @@
+digraph G {
+graph [fontname="Inter", fontsize=15, fontcolor="#111827", bgcolor="white", pad=0.3, nodesep=0.45, ranksep=0.5];
+node  [fontname="Inter", fontsize=14, fontcolor="#111827", shape=box, style="rounded,filled", fillcolor="#F9FAFB", color="#6B7280", penwidth=1.6, margin="0.22,0.12"];
+edge  [fontname="Inter", fontsize=12, fontcolor="#111827", color="#374151", penwidth=1.4, arrowsize=0.8];
+rankdir=TB; ranksep=0.42; nodesep=0.6;
+a [label="Employee uploads one receipt photo per line\n(each gets an EVD id), then submits", fillcolor="#EFF6FF", color="#2563EB"];
+b [shape=diamond, style=filled, fillcolor="white", margin="0.05,0.05", label="Valid lines?\nphoto on every line,\ndate >= trip created,\nnot future, amount ok"];
+b1 [label="422 error under the field\nnothing saved", fillcolor="#FEF2F2", color="#DC2626"];
+c [shape=diamond, style=filled, fillcolor="white", margin="0.05,0.05", label="Trip\nApproved - Active?"];
+c1 [label="409 TRIP_NOT_ACTIVE", fillcolor="#FEF2F2", color="#DC2626"];
+p [shape=plain, label=<<TABLE BORDER="1" COLOR="#D97706" CELLBORDER="0" CELLSPACING="0" CELLPADDING="7" BGCOLOR="#FFFBEB" STYLE="rounded">
+  <TR><TD><B>Policy engine checks each line</B></TD></TR>
+  <TR><TD ALIGN="LEFT">Amount over category limit</TD></TR>
+  <TR><TD ALIGN="LEFT">Same photo or invoice no. already claimed</TD></TR></TABLE>>];
+d [shape=diamond, style=filled, fillcolor="white", margin="0.05,0.05", label="Any flag?"];
+e [label=<<B>Auto-approved</B><BR/><FONT POINT-SIZE="11">reviewer = SYSTEM, final</FONT>>, fillcolor="#ECFDF5", color="#059669"];
+f [label=<<B>Pending</B><BR/><FONT POINT-SIZE="11">sent to manager</FONT>>, fillcolor="#FFFBEB", color="#D97706"];
+g [label="Manager reviews lines + photos\napproves, or rejects with\nreason + review comment", fillcolor="#ECFDF5", color="#059669"];
+h [label=<<B>Approved</B><BR/><FONT POINT-SIZE="11">final, comment optional</FONT>>, fillcolor="#ECFDF5", color="#059669"];
+r [label=<<B>Rejected</B><BR/><FONT POINT-SIZE="11">final and read-only</FONT>>, fillcolor="#FEF2F2", color="#DC2626"];
+n [label="Employee creates a NEW ticket, same trip_id:\nnew ticket id, new expense ids,\nphotos uploaded again (new evidence ids)", fillcolor="#EFF6FF", color="#2563EB"];
+a -> b; b -> b1 [label=" no"]; b -> c [label=" yes"]; c -> c1 [label=" no"]; c -> p [label=" yes"]; p -> d;
+d -> e [label=" no"]; d -> f [label=" yes"]; f -> g; g -> h [label=" approve"]; g -> r [label=" reject"];
+r -> n [label="  if trip still Active"]; n -> b [style=dashed, constraint=false, label=" full validation again"];
+{rank=same; b; b1} {rank=same; c; c1} {rank=same; e; f} {rank=same; h; r}
+}
