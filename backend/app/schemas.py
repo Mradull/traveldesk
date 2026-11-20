@@ -396,7 +396,10 @@ class HealthOut(OutModel):
 class LoginRequest(InModel):
     """POST /api/v1/auth/login"""
     email: str = Field(..., max_length=254, examples=["rohan.mehta@veridian.example"])
-    password: str = Field(..., min_length=MIN_PASSWORD_CHARS, max_length=MAX_PASSWORD_CHARS)
+    # Team decision 2026-11-20 (Work Distribution open item, M1): min_length=1, so a short wrong
+    # password gets the same 401 INVALID_CREDENTIALS as any wrong password, instead of a 422 that
+    # reveals the password rule. MIN_PASSWORD_CHARS (8) still applies to SEED_DEMO_PASSWORD.
+    password: str = Field(..., min_length=1, max_length=MAX_PASSWORD_CHARS)
 
     @field_validator("email")
     @classmethod
