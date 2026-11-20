@@ -108,14 +108,18 @@ def test_invalid_trip_dates_return_validation_error(
 
     assert response.status_code == 422
     assert response.json()["error"]["code"] == "VALIDATION_ERROR"
+    # Spec US-05: the error appears under the date field, without Pydantic's "Value error, " prefix.
+    assert response.json()["error"]["details"] == [
+        {"field": "end_date", "msg": "end_date must be later than start_date"}
+    ]
 
 
 @pytest.mark.parametrize(
-    "start_offset,end_offset",
+    "start_offset,end_offset,expected_field",
     [
-        (-1, 1),
-        (7, 37),
-        (366, 368),
+        (-1, 1, "start_date"),     # start in the past
+        (7, 37, "end_date"),       # 31 days (start and end both count) > 30
+        (366, 368, "start_date"),  # start more than 365 days ahead
     ],
 )
 def test_trip_date_limits_return_validation_error(
@@ -123,6 +127,7 @@ def test_trip_date_limits_return_validation_error(
     create_test_employee,
     start_offset: int,
     end_offset: int,
+    expected_field: str,
 ) -> None:
     employee = create_test_employee()
     start_date = today() + timedelta(days=start_offset)
@@ -140,6 +145,9 @@ def test_trip_date_limits_return_validation_error(
 
     assert response.status_code == 422
     assert response.json()["error"]["code"] == "VALIDATION_ERROR"
+    details = response.json()["error"]["details"]
+    assert [detail["field"] for detail in details] == [expected_field]
+    assert not details[0]["msg"].startswith("Value error")
 
 
 def test_employee_id_cannot_be_chosen_in_request_body(

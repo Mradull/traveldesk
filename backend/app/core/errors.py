@@ -90,6 +90,40 @@ def _error_response(
     return JSONResponse(status_code=status_code, content=body.model_dump(mode="json"))
 
 
+# Rules in schemas.py that check several fields together (model validators) have no single field
+# in their error location. The spec wants every message shown under its field (e.g. trip dates,
+# review_comment, expenses), so these exact schemas.py messages are mapped to the field they are about.
+_MODEL_RULE_FIELDS: tuple[tuple[str, str], ...] = (
+    ("start_date must be today or a future date", "start_date"),              # TripBase
+    ("A trip cannot start more than one year from today", "start_date"),      # TripBase
+    ("end_date must be later than start_date", "end_date"),                   # TripBase
+    ("A trip can last at most", "end_date"),                                  # TripBase
+    ("review_comment of at least", "review_comment"),                         # Trip/TicketDecisionRequest
+    ("rejection_reason is", "rejection_reason"),                              # TicketDecisionRequest
+    ("Each expense line needs its own receipt photo", "expenses"),            # TicketCreate
+    ("The same invoice number appears twice", "expenses"),                    # TicketCreate
+)
+_PYDANTIC_VALUE_ERROR_PREFIX = "Value error, "
+
+
+def _validation_detail(error: dict[str, Any]) -> dict[str, str]:
+    """Turn one Pydantic error into {"field": ..., "msg": ...} for the error envelope.
+
+    Example: TripCreate with end_date == start_date
+      before: {"field": "",         "msg": "Value error, end_date must be later than start_date"}
+      after:  {"field": "end_date", "msg": "end_date must be later than start_date"}
+    Nested paths keep their prefix, e.g. "expenses.0.expense_date".
+    """
+    field = ".".join(str(part) for part in error["loc"] if part != "body")
+    message = str(error["msg"]).removeprefix(_PYDANTIC_VALUE_ERROR_PREFIX)
+    if error.get("type") == "value_error":
+        for message_start, rule_field in _MODEL_RULE_FIELDS:
+            if message.startswith(message_start) and field.rsplit(".", 1)[-1] != rule_field:
+                field = f"{field}.{rule_field}" if field else rule_field
+                break
+    return {"field": field, "msg": message}
+
+
 def install_error_handlers(app: FastAPI) -> None:
     @app.exception_handler(AppError)
     async def app_error_handler(request: Request, exc: AppError) -> JSONResponse:
@@ -107,13 +141,7 @@ def install_error_handlers(app: FastAPI) -> None:
     async def validation_error_handler(
         request: Request, exc: RequestValidationError
     ) -> JSONResponse:
-        details = [
-            {
-                "field": ".".join(str(part) for part in error["loc"] if part != "body"),
-                "msg": error["msg"],
-            }
-            for error in exc.errors()
-        ]
+        details = [_validation_detail(error) for error in exc.errors()]
         _log_error(request, ErrorCode.VALIDATION_ERROR, 422, type(exc).__name__)
         return _error_response(
             request,
