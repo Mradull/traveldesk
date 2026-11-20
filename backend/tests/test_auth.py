@@ -59,6 +59,7 @@ def test_login_returns_contract_token(api_client, create_test_employee) -> None:
     [
         ("unknown@veridian.example", "DemoPassword123!"),
         ("rohan.mehta@veridian.example", "WrongPassword123!"),
+        ("rohan.mehta@veridian.example", "abc"),      # short: same 401, the length rule is not revealed
     ],
 )
 def test_wrong_email_and_password_have_same_error(
