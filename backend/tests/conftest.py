@@ -248,3 +248,187 @@ def seeded_test_database(test_engine: Engine, clean_test_database: None) -> None
     from scripts.init_db import seed_if_empty
 
     seed_if_empty(test_engine, hash_password("TestOnlySeed123"))
+
+
+# --- Piyush/M2 test fixtures ---
+# Opt-in: each Vera test module starts with  pytestmark = pytest.mark.usefixtures("vera_db"),
+# so Joyal's tests are not affected. No test calls the real AI provider, Open-Meteo or the
+# embedding model: the LLM is a scripted fake, Open-Meteo is mocked with respx, and the
+# embedder is a deterministic bag-of-words fake.
+import math
+import re
+from datetime import date, timedelta
+
+import httpx
+import respx
+from langchain_core.embeddings import Embeddings
+from langchain_core.language_models.fake_chat_models import GenericFakeChatModel
+from langchain_core.messages import AIMessage
+from langchain_core.outputs import ChatGeneration, ChatResult
+
+from app import schemas
+from app.ai import llm_client
+from app.chat import guardrails
+from app.core.database import transaction
+from app.rag import embeddings, retriever
+from app.services import weather_service
+
+TODAY = date(2026, 11, 20)        # frozen "today" for every Vera test
+
+
+@pytest.fixture
+def vera_db(monkeypatch: pytest.MonkeyPatch, test_engine: Engine) -> Iterator[None]:
+    """Vera tests: start traveldesk_test from empty tables with 1 manager + 2 employees, freeze today,
+    fake embedder, no caches. (APP_ENV=test, set by test_jwt_secret, already sends every
+    transaction()/connection() to traveldesk_test.)"""
+    with test_engine.begin() as db:
+        # CASCADE also empties chat_*, the three AI log tables and every business table
+        db.execute(text("TRUNCATE employees, policy_chunks, error_logs RESTART IDENTITY CASCADE"))
+        db.execute(text("""
+            INSERT INTO employees (full_name, email, password_hash, department, role, manager_id) VALUES
+            ('Vikram Iyer', 'vikram.iyer@veridian.example', 'x', 'Advisory', 'MANAGER', NULL),
+            ('Rohan Mehta', 'rohan.mehta@veridian.example', 'x', 'Tax', 'EMPLOYEE', 1),
+            ('Sara Thomas', 'sara.thomas@veridian.example', 'x', 'Assurance', 'EMPLOYEE', 1)"""))
+    monkeypatch.setattr(schemas, "today", lambda: TODAY)
+    monkeypatch.setattr(embeddings, "_embedder", FakeEmbeddings())
+    retriever._cache["fingerprint"] = None
+    weather_service.clear_cache()
+    guardrails.reset_rate_limits()
+    yield
+    llm_client.set_chat_model(None)
+
+
+def _user(employee_id: int) -> schemas.CurrentUser:
+    with transaction() as conn:
+        row = conn.execute(text("SELECT employee_id, full_name, email, department, role, manager_id "
+                                "FROM employees WHERE employee_id = :i"), {"i": employee_id}).mappings().one()
+    return schemas.CurrentUser(**row)
+
+
+@pytest.fixture
+def manager(vera_db: None) -> schemas.CurrentUser:
+    return _user(1)
+
+
+@pytest.fixture
+def employee(vera_db: None) -> schemas.CurrentUser:
+    return _user(2)
+
+
+@pytest.fixture
+def other_employee(vera_db: None) -> schemas.CurrentUser:
+    return _user(3)
+
+
+@pytest.fixture
+def auth() -> Callable[[schemas.CurrentUser], dict]:
+    """auth(user) -> {'Authorization': 'Bearer <jwt>'} signed with Joyal's create_access_token."""
+    return lambda user: {"Authorization": f"Bearer {create_access_token(user.employee_id, user.role)[0]}"}
+
+
+@pytest.fixture
+def client(api_client: TestClient) -> TestClient:
+    """Joyal's api_client (get_db -> test database) under the name the Vera tests use."""
+    return api_client
+
+
+class ScriptedChatModel(GenericFakeChatModel):
+    """LangChain's fake chat model, extended so it accepts bind_tools() and records each call.
+    Script items: AIMessage / str replies, or an Exception instance to raise."""
+    calls: list = []           # [(messages, tool names bound)]
+    bound: list = []
+
+    def bind_tools(self, tools, **kwargs):
+        self.bound = [t.name for t in tools]
+        return self
+
+    def _generate(self, messages, stop=None, run_manager=None, **kwargs):
+        self.calls.append((messages, list(self.bound)))
+        self.bound = []
+        item = next(self.messages)
+        if isinstance(item, Exception):
+            raise item
+        message = item if isinstance(item, AIMessage) else AIMessage(content=item)
+        return ChatResult(generations=[ChatGeneration(message=message)])
+
+
+@pytest.fixture
+def fake_llm() -> Iterator[Callable[..., ScriptedChatModel]]:
+    """fake_llm(*replies) installs a scripted model and returns it (inspect .calls afterwards)."""
+    def install(*replies):
+        model = ScriptedChatModel(messages=iter(replies), calls=[], bound=[])
+        llm_client.set_chat_model(model)
+        return model
+    yield install
+    llm_client.set_chat_model(None)
+
+
+def tool_call(name: str, args: dict, call_id: str = "call-1") -> AIMessage:
+    """An AIMessage in which the model asks for one tool."""
+    return AIMessage(content="", tool_calls=[{"name": name, "args": args, "id": call_id}])
+
+
+_STOP = {"the", "a", "an", "is", "are", "what", "how", "do", "i", "my", "to", "of", "for", "in", "on", "and", "or",
+         "can", "it", "be", "you", "me", "per", "with", "at", "this", "that", "your", "if", "by", "as", "not"}
+
+
+class FakeEmbeddings(Embeddings):
+    """Deterministic bag-of-words vectors (384 dims, normalised): no model download in tests."""
+
+    def _vec(self, text_: str) -> list[float]:
+        v = [0.0] * 384
+        for word in re.findall(r"[a-z]+", text_.lower()):
+            word = word[:-1] if word.endswith("s") and len(word) > 3 else word
+            if word not in _STOP:
+                v[int(hashlib.md5(word.encode()).hexdigest(), 16) % len(v)] += 1.0
+        norm = math.sqrt(sum(x * x for x in v)) or 1.0
+        return [x / norm for x in v]
+
+    def embed_documents(self, texts):
+        return [self._vec(t) for t in texts]
+
+    def embed_query(self, text_):
+        return self._vec(text_)
+
+
+@pytest.fixture
+def policy_index(vera_db: None) -> None:
+    """Ingest the real business document (backend/data/expense_policy.txt) with the fake embedder."""
+    from scripts.ingest_policy import main as ingest
+    ingest()
+
+
+GEO_BENGALURU = {"results": [{"name": "Bengaluru", "admin1": "Karnataka", "country": "India", "country_code": "IN",
+                              "latitude": 12.97, "longitude": 77.59, "population": 8443675}]}
+
+
+def forecast_json(start: date, days: int, **overrides) -> dict:
+    """Open-Meteo daily JSON for `days` days from `start` with fixed, easy-to-check values."""
+    dates = [(start + timedelta(days=i)).isoformat() for i in range(days)]
+    daily = {"time": dates, "weather_code": [61] * days, "temperature_2m_min": [19.4] * days,
+             "temperature_2m_max": [27.8] * days, "precipitation_probability_max": [70] * days,
+             "precipitation_sum": [4.2] * days, "wind_speed_10m_max": [14.0] * days}
+    daily.update(overrides)
+    return {"daily": daily}
+
+
+@pytest.fixture
+def weather_api() -> Iterator[respx.MockRouter]:
+    """respx router for Open-Meteo. Defaults: geocoding finds Bengaluru; forecast echoes the
+    requested dates with the fixed values of forecast_json(). Override routes per test."""
+    settings = get_settings()
+    with respx.mock(assert_all_called=False) as mock:
+        mock.get(settings.weather_geocoding_url, name="geo").mock(return_value=httpx.Response(200, json=GEO_BENGALURU))
+
+        def echo_forecast(request: httpx.Request):
+            s = date.fromisoformat(request.url.params["start_date"])
+            e = date.fromisoformat(request.url.params["end_date"])
+            return httpx.Response(200, json=forecast_json(s, (e - s).days + 1))
+        mock.get(settings.weather_forecast_url, name="forecast").mock(side_effect=echo_forecast)
+        yield mock
+
+
+def rows(sql: str, **params) -> list[dict]:
+    """Assert on table contents (runs inside vera_db, so it reads traveldesk_test)."""
+    with transaction() as conn:
+        return [dict(r) for r in conn.execute(text(sql), params).mappings()]

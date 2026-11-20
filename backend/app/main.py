@@ -17,6 +17,7 @@ from app.core.errors import install_error_handlers
 from app.core.logging import configure_logging
 from app.core.middleware import RequestContextMiddleware
 from app.routers.auth import me_router, router as auth_router
+from app.routers.chat import router as chat_router
 from app.routers.evidence import router as evidence_router
 from app.routers.expenses import router as expenses_router
 from app.routers.health import router as health_router
@@ -69,3 +70,4 @@ app.include_router(policy_router, prefix=settings.api_prefix)
 app.include_router(reports_router, prefix=settings.api_prefix)
 
 # --- Piyush/M2: register the chat router here; do not change M1 middleware or handlers ---
+app.include_router(chat_router, prefix=settings.api_prefix)      # Vera: /chat/... (Employee only)

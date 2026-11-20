@@ -27,7 +27,8 @@ JOBS: list[Callable[[], int]] = [
     # --- Joyal/M1 ---
     jobs.auto_complete_trips,
     jobs.delete_unattached_evidence,
-    # --- Piyush/M2: append jobs.expire_idle_sessions here ---
+    # --- Piyush/M2 ---
+    jobs.expire_idle_sessions,
 ]
 
 
