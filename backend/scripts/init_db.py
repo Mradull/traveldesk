@@ -1,9 +1,11 @@
 """
 Apply populated database/migrations/*.sql in order, recording each successful migration in
 schema_migrations. A full initialization refuses to run while any migration is a placeholder.
+A full run (no --through) then loads the seed data ONCE, only while the employees table is empty:
+database/seed/seed_data.sql plus the 8 receipt photos in database/seed/evidence/.
 
 Use --through 001_core_tables.sql --test-database to apply only the first migration to the
-isolated traveldesk_test database while developing.
+isolated traveldesk_test database while developing (no seed is loaded with --through).
 
 Owner: Joyal (M1)  |  Spec: Agile Spec v2.0
 """
@@ -11,6 +13,7 @@ Owner: Joyal (M1)  |  Spec: Agile Spec v2.0
 import argparse
 import re
 import sys
+from hashlib import sha256
 from pathlib import Path
 from typing import Sequence
 
@@ -22,9 +25,14 @@ if str(BACKEND_DIR) not in sys.path:
 from sqlalchemy import text
 from sqlalchemy.engine import Engine
 
+from app.core.config import get_settings
 from app.core.database import get_engine
+from app.core.security import hash_password
+from app.schemas import MIN_PASSWORD_CHARS
 
 MIGRATIONS_DIR = PROJECT_ROOT / "database" / "migrations"
+SEED_SQL_PATH = PROJECT_ROOT / "database" / "seed" / "seed_data.sql"
+SEED_EVIDENCE_DIR = PROJECT_ROOT / "database" / "seed" / "evidence"
 SCHEMA_MIGRATIONS_SQL = """
 CREATE TABLE IF NOT EXISTS schema_migrations (
     version TEXT PRIMARY KEY,
@@ -118,6 +126,52 @@ def run_migrations(
     return newly_applied
 
 
+def _seed_password_hash() -> str:
+    """bcrypt-hash SEED_DEMO_PASSWORD from .env (the same hash_password() used at login)."""
+    secret = get_settings().seed_demo_password
+    password = secret.get_secret_value() if secret is not None else ""
+    if len(password) < MIN_PASSWORD_CHARS or password.startswith("change-me-"):
+        raise RuntimeError(
+            f"Set a private SEED_DEMO_PASSWORD of at least {MIN_PASSWORD_CHARS} characters "
+            "in backend/.env before loading the seed data."
+        )
+    return hash_password(password)
+
+
+def seed_if_empty(engine: Engine, password_hash: str) -> bool:
+    """Load seed_data.sql and the 8 seed photos in one transaction; skip if employees exist."""
+    with engine.begin() as connection:
+        if connection.execute(text("SELECT EXISTS (SELECT 1 FROM employees)")).scalar_one():
+            return False
+
+        # The hash is passed as a transaction-local setting, so seed_data.sql never contains it.
+        connection.execute(
+            text("SELECT set_config('traveldesk.seed_password_hash', :password_hash, true)"),
+            {"password_hash": password_hash},
+        )
+        raw_connection = connection.connection.driver_connection
+        raw_connection.execute(SEED_SQL_PATH.read_text(encoding="utf-8"), prepare=False)
+
+        # Load each photo's bytes, after checking the file is exactly the one seed_data.sql describes.
+        evidence_rows = connection.execute(
+            text(
+                "SELECT evidence_id, original_filename, size_bytes, sha256 "
+                "FROM expense_evidence ORDER BY evidence_code"
+            )
+        ).mappings().all()
+        for row in evidence_rows:
+            content = (SEED_EVIDENCE_DIR / row["original_filename"]).read_bytes()
+            if len(content) != row["size_bytes"] or sha256(content).hexdigest() != row["sha256"]:
+                raise RuntimeError(
+                    f"Seed photo {row['original_filename']} does not match its size/sha256 in seed_data.sql."
+                )
+            connection.execute(
+                text("INSERT INTO evidence_files (evidence_id, content) VALUES (:evidence_id, :content)"),
+                {"evidence_id": row["evidence_id"], "content": content},
+            )
+    return True
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Apply TravelDesk PostgreSQL migrations.")
     parser.add_argument(
@@ -132,10 +186,18 @@ def main() -> None:
     )
     args = parser.parse_args()
 
+    load_seed = args.through is None
     try:
+        # Check the seed password BEFORE touching the database, so a bad .env changes nothing.
+        password_hash = _seed_password_hash() if load_seed else None
         newly_applied = run_migrations(
             through=args.through,
             use_test_database=args.test_database,
+        )
+        seeded = (
+            seed_if_empty(get_engine(use_test_database=args.test_database), password_hash)
+            if load_seed
+            else False
         )
     except (RuntimeError, ValueError) as exc:
         parser.error(str(exc))
@@ -143,6 +205,8 @@ def main() -> None:
         print("Applied migrations: " + ", ".join(newly_applied))
     else:
         print("No new migrations to apply.")
+    if load_seed:
+        print("Seed data loaded." if seeded else "Seed skipped: employees already exist.")
 
 
 if __name__ == "__main__":
