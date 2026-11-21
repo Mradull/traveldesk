@@ -1,0 +1,2 @@
+{"id": "session_boundary-01", "first_message": "I am travelling to Kochi from 3 to 6 December. What will the weather be?", "first_reply": "Kochi looks warm and humid for your trip, with temperatures between 24 °C and 31 °C.", "second_message": "What should I pack?", "forbidden": "Kochi"}
+{"id": "session_boundary-02", "first_message": "What is the weather in Shimla from 10 to 12 December?", "first_reply": "Shimla looks cold for your trip, with lows around 4 °C.", "second_message": "Will it rain on those dates?", "forbidden": "Shimla"}

@@ -1,0 +1,3 @@
+{"id": "memory-01", "turns": ["What is the review threshold for meals?", "And for lodging?"], "expected_keywords": ["7,500"]}
+{"id": "memory-02", "turns": ["What is the review threshold for airfare?", "What about ground transport?"], "expected_keywords": ["3,000"]}
+{"id": "memory-03", "turns": ["How long can a single trip last?", "And how far ahead can it start?"], "expected_keywords": ["365"]}

@@ -1,0 +1,5 @@
+{"id": "platform_howto-01", "question": "How do I create a travel request in TravelDesk?", "expected_keywords": ["Create Trip"], "expected_ref_ids": ["GUIDE-2"]}
+{"id": "platform_howto-02", "question": "How do I raise an expense ticket in TravelDesk?", "expected_keywords": ["Submit ticket"], "expected_ref_ids": ["GUIDE-6"]}
+{"id": "platform_howto-03", "question": "In TravelDesk, what should I do after a ticket is rejected?", "expected_keywords": ["Create new ticket"], "expected_ref_ids": ["GUIDE-9", "POL-5.8", "FAQ-4"]}
+{"id": "platform_howto-04", "question": "Which TravelDesk page lists trips with their status and filters?", "expected_keywords": ["My Trips"], "expected_ref_ids": ["GUIDE-3"]}
+{"id": "platform_howto-05", "question": "How long does a TravelDesk sign-in session last?", "expected_keywords": ["60 minutes"], "expected_ref_ids": ["GUIDE-1"]}
