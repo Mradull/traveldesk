@@ -66,6 +66,55 @@ class Settings(BaseSettings):
     error_log_stack_traces: bool = True
     correlation_header: str = "X-Correlation-ID"
 
+    # ===================== M2 (Piyush) START =====================
+    # AI provider (openrouter | gemini | azure). Keys are SecretStr so they never show in logs or repr.
+    ai_provider: str = "openrouter"
+    ai_timeout_seconds: float = 30
+    ai_max_retries: int = 1                 # retried only on timeout / 5xx / connection errors
+    ai_temperature: float = 0.2
+    ai_max_output_tokens: int = 800
+    prompt_version: str = "vera-system-v2.0"
+    openrouter_api_key: SecretStr | None = None
+    openrouter_base_url: str = "https://openrouter.ai/api/v1"
+    openrouter_model: str = "nvidia/nemotron-3.5-super-vl:free"
+    openrouter_reasoning_enabled: bool = False
+    openrouter_app_title: str = "TravelDesk-EY-Capstone"
+    gemini_api_key: SecretStr | None = None   # Gemini through its OpenAI-compatible endpoint
+    gemini_model: str = ""
+    gemini_base_url: str = "https://generativelanguage.googleapis.com/v1beta/openai/"
+    azure_openai_endpoint: str = ""
+    azure_openai_api_key: SecretStr | None = None
+    azure_openai_deployment: str = ""
+    azure_openai_api_version: str = ""
+
+    # Embeddings + RAG (policy_rules_version is in Joyal's policy block above)
+    embedding_provider: str = "local"
+    embedding_model: str = "sentence-transformers/all-MiniLM-L6-v2"
+    embedding_dimensions: int = 384
+    policy_document_path: str = "data/expense_policy.txt"   # relative to backend/
+    rag_top_k: int = 4
+    rag_min_similarity: float = 0.35
+
+    # Weather (Open-Meteo), used only by Vera's tool
+    weather_geocoding_url: str = "https://geocoding-api.open-meteo.com/v1/search"
+    weather_forecast_url: str = "https://api.open-meteo.com/v1/forecast"
+    weather_timeout_seconds: float = 8
+    weather_forecast_horizon_days: int = 16
+    weather_cache_ttl_minutes: int = 180
+    weather_ambiguity_min_population: int = 100000
+
+    # Chat (Vera)
+    chat_idle_timeout_minutes: int = 60
+    chat_history_turns: int = 8
+    chat_context_token_budget: int = 6000
+    chat_max_tool_calls_per_turn: int = 4
+    chat_rate_limit_per_minute: int = 10
+    chat_max_message_chars: int = 1000
+
+    # Evals
+    eval_use_live_llm: bool = False
+    # ===================== M2 (Piyush) END =======================
+
 
 @lru_cache(maxsize=1)
 def get_settings() -> Settings:

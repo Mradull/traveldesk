@@ -1,0 +1,12 @@
+{"id": "retrieval-01", "query": "What is the review threshold for meals?", "expected_ref_id": "POL-6.2"}
+{"id": "retrieval-02", "query": "Which expense categories are allowed?", "expected_ref_id": "POL-6.1"}
+{"id": "retrieval-03", "query": "Do I need a receipt photo for every expense line?", "expected_ref_id": "POL-7.1"}
+{"id": "retrieval-04", "query": "What happens if I claim the same receipt twice?", "expected_ref_id": "POL-7.4"}
+{"id": "retrieval-05", "query": "Can an expense be dated before the trip was created?", "expected_ref_id": "POL-8.2"}
+{"id": "retrieval-06", "query": "How long can a single business trip last?", "expected_ref_id": "POL-3.2"}
+{"id": "retrieval-07", "query": "When does a trip get completed automatically?", "expected_ref_id": "POL-4.3"}
+{"id": "retrieval-08", "query": "How do I correct a rejected ticket?", "expected_ref_id": "POL-5.8"}
+{"id": "retrieval-09", "query": "What is the maximum amount for one expense line?", "expected_ref_id": "POL-6.3"}
+{"id": "retrieval-10", "query": "Is alcohol or hotel minibar reimbursed?", "expected_ref_id": "POL-10.1"}
+{"id": "retrieval-11", "query": "How many expense lines can one ticket have?", "expected_ref_id": "POL-5.4"}
+{"id": "retrieval-12", "query": "What information does a travel request need?", "expected_ref_id": "POL-3.1"}

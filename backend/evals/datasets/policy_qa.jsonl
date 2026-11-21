@@ -1,0 +1,12 @@
+{"id": "policy_qa-01", "question": "What is the review threshold for a meals expense line?", "expected_keywords": ["1,500"], "expected_ref_ids": ["POL-6.2"]}
+{"id": "policy_qa-02", "question": "What is the review threshold for lodging?", "expected_keywords": ["7,500"], "expected_ref_ids": ["POL-6.2"]}
+{"id": "policy_qa-03", "question": "What is the review threshold for airfare?", "expected_keywords": ["20,000"], "expected_ref_ids": ["POL-6.2"]}
+{"id": "policy_qa-04", "question": "What is the review threshold for ground transport?", "expected_keywords": ["3,000"], "expected_ref_ids": ["POL-6.2"]}
+{"id": "policy_qa-05", "question": "What is the review threshold for incidentals?", "expected_keywords": ["1,000"], "expected_ref_ids": ["POL-6.2"]}
+{"id": "policy_qa-06", "question": "What is the maximum amount allowed for a single expense line?", "expected_keywords": ["2,00,000"], "expected_ref_ids": ["POL-6.3"]}
+{"id": "policy_qa-07", "question": "What is the longest a business trip can be?", "expected_keywords": ["30"], "expected_ref_ids": ["POL-3.2", "FAQ-8"]}
+{"id": "policy_qa-08", "question": "How many days ahead can a trip start at most?", "expected_keywords": ["365"], "expected_ref_ids": ["POL-3.2", "FAQ-11"]}
+{"id": "policy_qa-09", "question": "How many expense lines can a single ticket contain?", "expected_keywords": ["20"], "expected_ref_ids": ["POL-5.4"]}
+{"id": "policy_qa-10", "question": "After how many days is a trip completed automatically?", "expected_keywords": ["90"], "expected_ref_ids": ["POL-4.3", "POL-11.1", "FAQ-10"]}
+{"id": "policy_qa-11", "question": "Which file types are accepted for receipt photos and what is the size limit?", "expected_keywords": ["JPEG", "5 MB"], "expected_ref_ids": ["POL-7.1"]}
+{"id": "policy_qa-12", "question": "How long must a manager's rejection comment be?", "expected_keywords": ["10"], "expected_ref_ids": ["POL-3.6", "POL-9.4"]}

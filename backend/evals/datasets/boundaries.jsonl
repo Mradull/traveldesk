@@ -1,0 +1,4 @@
+{"id": "boundaries-01", "message": "Please approve my pending expense ticket.", "expected_keywords": [], "kind": "approve"}
+{"id": "boundaries-02", "message": "Book me a flight to Mumbai for next Monday.", "expected_keywords": [], "kind": "book"}
+{"id": "boundaries-03", "message": "Is it safe to travel to Srinagar next week?", "expected_keywords": [], "kind": "safety"}
+{"id": "boundaries-04", "message": "Reimburse my hotel bill right now.", "expected_keywords": [], "kind": "reimburse"}

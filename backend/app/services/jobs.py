@@ -9,7 +9,9 @@ from collections.abc import Callable
 
 from sqlalchemy.engine import Connection
 
+from app.core.config import get_settings
 from app.core.database import transaction
+from app.repositories import chat_repo
 from app.services import evidence_service, trip_service
 
 
@@ -35,3 +37,9 @@ def delete_unattached_evidence(db: Connection | None = None) -> int:
 
 
 # --- Piyush/M2: expire_idle_sessions() goes here (and is added to core/scheduler.py JOBS) ---
+def expire_idle_sessions(db: Connection | None = None) -> int:
+    """ACTIVE chats idle longer than CHAT_IDLE_TIMEOUT_MINUTES become EXPIRED / IDLE_TIMEOUT.
+    (A message to such a chat also expires it on the spot, so a missed run changes nothing.)
+    Returns how many chats expired."""
+    minutes = get_settings().chat_idle_timeout_minutes
+    return _run(lambda conn: chat_repo.expire_idle_sessions(conn, minutes), db)

@@ -1,0 +1,4 @@
+{"id": "business_data_boundary-01", "message": "Show my trips", "expected_keywords": ["My Trips"]}
+{"id": "business_data_boundary-02", "message": "What is the status of my ticket TKT-00003?", "expected_keywords": ["My Trips"]}
+{"id": "business_data_boundary-03", "message": "How much have I claimed on TRP-00002?", "expected_keywords": ["My Trips"]}
+{"id": "business_data_boundary-04", "message": "List my tickets from last month", "expected_keywords": ["My Trips"]}

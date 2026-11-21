@@ -1,0 +1,4 @@
+{"id": "weather_missing_inputs-01", "message": "What will the weather be from 3 to 6 December?", "missing": "destination"}
+{"id": "weather_missing_inputs-02", "message": "What will the weather be in Pune until 6 December?", "missing": "start_date"}
+{"id": "weather_missing_inputs-03", "message": "What will the weather be in Pune from 3 December?", "missing": "end_date"}
+{"id": "weather_missing_inputs-04", "message": "What will the weather be in Pune on 05/06?", "missing": "ambiguous_date"}
