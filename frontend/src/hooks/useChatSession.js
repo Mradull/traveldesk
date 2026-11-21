@@ -9,6 +9,7 @@ const SESSION_ENDED = ["SESSION_EXPIRED", "SESSION_CLOSED"];
  * One Vera session per open window.
  * - Opening creates a new session (no memory of earlier chats).
  * - On 410 (expired or closed) it starts a new session, shows a notice and resends ONCE.
+ * - A FAILED/PARTIAL answer with retryable: true gets a Retry button.
  * - close() is called by the X button.
  */
 export function useChatSession() {
@@ -61,7 +62,10 @@ export function useChatSession() {
         add(makeItem({ role: "notice", text: "Started a new chat (the previous one ended)." }));
         reply = await sendChatMessage(sessionRef.current, message); // resend once
       }
-      add(makeItem({ role: "ai", ...normalizeReply(reply) }));
+      const answer = normalizeReply(reply);
+      // A tool failure (e.g. weather timeout) comes back as HTTP 200 with status FAILED/PARTIAL and retryable: true
+      const canRetry = ["FAILED", "PARTIAL"].includes(answer.status) && answer.retryable;
+      add(makeItem({ role: "ai", ...answer, retryText: canRetry ? message : null }));
     } catch (err) {
       const canRetry = !["VALIDATION_ERROR", "FORBIDDEN"].includes(err.code);
       add(makeItem({ role: "error", text: err.message, retryText: canRetry ? message : null }));

@@ -8,11 +8,15 @@ import { mockChatClose, mockChatCreate, mockChatHistory, mockChatList, mockChatS
  */
 export function normalizeReply(r) {
   return {
-    text: r.reply ?? "",
-    citations: r.citations ?? [],
-    tools: r.tools_used ?? [],
-    weather: r.weather_card ?? r.metadata?.weather_card ?? null,
-    status: r.status,
+    text: r.reply ?? "",                      // plain text with line breaks
+    intent: r.intent ?? null,                 // POLICY | WEATHER | POLICY_AND_WEATHER | GREETING | OUT_OF_SCOPE
+    citations: r.citations ?? [],             // [{ ref_id, title, similarity }]
+    tools: r.tools_used ?? [],                // [{ tool_name, status, error_code, latency_ms }]
+    weather: r.weather ?? null,               // VeraWeatherAnswer or null
+    status: r.status,                         // COMPLETED | PARTIAL | BLOCKED | FAILED
+    errorCode: r.error_code ?? null,
+    retryable: Boolean(r.retryable),
+    guardrail: r.guardrail_status ?? null,
   };
 }
 
@@ -25,7 +29,7 @@ export function historyToItems(history) {
       role: m.message_type === "human_message" ? "user" : "ai",
       text: m.content,
       citations: m.metadata?.citations ?? [],
-      weather: m.metadata?.weather_card ?? null,
+      weather: m.metadata?.weather ?? m.metadata?.weather_card ?? null,
     }));
 }
 

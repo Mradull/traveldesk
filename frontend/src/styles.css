@@ -270,7 +270,9 @@ a.evidence-thumb:hover { border-color: var(--primary); }
 .bubble--user { align-self: flex-end; background: var(--primary); color: #fff; }
 .bubble--error { align-self: flex-start; background: var(--red-bg); color: var(--red-text); }
 .bubble--error p { margin: 0 0 0.4rem; }
-.bubble__text { margin: 0; }
+.bubble__text { margin: 0; white-space: pre-line; }
+.bubble--warn { border-color: var(--amber-text); }
+.bubble__retry { margin-top: 0.5rem; }
 .bubble__tools { margin: 0.4rem 0 0; font-size: 0.75rem; color: var(--muted); }
 .bubble__label { margin: 0.4rem 0 0; font-size: 0.72rem; color: var(--muted); font-style: italic; }
 .citations { display: flex; flex-wrap: wrap; gap: 0.3rem; margin-top: 0.5rem; }

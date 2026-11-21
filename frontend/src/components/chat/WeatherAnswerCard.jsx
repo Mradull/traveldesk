@@ -7,10 +7,15 @@ function describeDates(dates) {
   return `${formatDate(dates[0])} – ${formatDate(dates[dates.length - 1])} (${dates.length} days)`;
 }
 
-/** Vera's weather answer: every number comes from the weather tool result */
-export default function WeatherAnswerCard({ card }) {
+/**
+ * Vera's weather answer (VeraWeatherAnswer). Every number comes from the weather tool result.
+ * showSummary: false when the reply text already contains the summary and checklist.
+ * The daily table appears only if the backend sends `days` (open team decision).
+ */
+export default function WeatherAnswerCard({ card, showSummary = true }) {
   const basis = card.forecast_basis ?? {};
   const uncovered = basis.uncovered_dates ?? [];
+  const covered = basis.covered_dates ?? [];
   const days = card.days ?? [];
 
   return (
@@ -21,6 +26,8 @@ export default function WeatherAnswerCard({ card }) {
       </div>
       <p className="muted small">Source: {basis.source ?? "Open-Meteo"}, retrieved {formatDateTime(basis.retrieved_at)}</p>
 
+      {covered.length > 0 && <p className="small">Forecast for {describeDates(covered)}.</p>}
+
       {days.length > 0 && (
         <div className="table-wrap">
           <table className="weather-table">
@@ -28,15 +35,18 @@ export default function WeatherAnswerCard({ card }) {
               <tr><th>Day</th><th>Conditions</th><th className="num">°C</th><th className="num">Rain</th><th className="num">Wind</th></tr>
             </thead>
             <tbody>
-              {days.map((d) => (
-                <tr key={d.forecast_date}>
-                  <td>{shortDate(d.forecast_date)}</td>
-                  <td>{d.condition ?? "–"}</td>
-                  <td className="num">{d.temp_min_c ?? "–"}–{d.temp_max_c ?? "–"}</td>
-                  <td className="num">{d.precipitation_probability_max_pct ?? "–"}%, {d.precipitation_sum_mm ?? "–"} mm</td>
-                  <td className="num">{d.wind_speed_max_kmh ?? "–"} km/h</td>
-                </tr>
-              ))}
+              {days.map((d) => {
+                const day = d.forecast_date ?? d.date;
+                return (
+                  <tr key={day}>
+                    <td>{shortDate(day)}</td>
+                    <td>{d.condition ?? "–"}</td>
+                    <td className="num">{d.temp_min_c ?? "–"}–{d.temp_max_c ?? "–"}</td>
+                    <td className="num">{d.precipitation_probability_max_pct ?? "–"}%, {d.precipitation_sum_mm ?? "–"} mm</td>
+                    <td className="num">{d.wind_speed_max_kmh ?? "–"} km/h</td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>
@@ -44,13 +54,13 @@ export default function WeatherAnswerCard({ card }) {
 
       {uncovered.length > 0 && (
         <p className="weather-card__na">
-          <strong>Forecast not available</strong> for {describeDates(uncovered)}. Forecasts cover about the next 16 days.
+          <strong>Forecast not available</strong> for {describeDates(uncovered)}. Forecasts cover today plus 15 days.
         </p>
       )}
 
-      {card.weather_summary && <p>{card.weather_summary}</p>}
+      {showSummary && card.weather_summary && <p>{card.weather_summary}</p>}
 
-      {card.travel_checklist?.length > 0 && (
+      {showSummary && card.travel_checklist?.length > 0 && (
         <>
           <p className="weather-card__title">Travel checklist</p>
           <ul>{card.travel_checklist.map((item) => <li key={item}>{item}</li>)}</ul>

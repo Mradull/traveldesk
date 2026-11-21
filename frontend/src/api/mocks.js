@@ -684,9 +684,10 @@ export async function mockListPendingExpenses() {
 }
 
 // =====================================================================
-// Vera chat (rule-based stand-in for Piyush's LangChain backend).
-// Sessions live in memory, like the real ones live in PostgreSQL.
+// Vera chat (rule-based stand-in for Piyush's backend). Replies use the
+// EXACT ChatReplyOut shape from docs/vera_sample_replies.json.
 // The mock understands dates only as YYYY-MM-DD.
+// Type "simulate timeout" in a weather question to test the Retry button.
 // =====================================================================
 const chatSessions = new Map();
 const VERA_INTRO = "Hi, I'm Vera, Veridian Global's travel assistant. I can explain our expense policy and how to use TravelDesk, and check the weather for a destination and dates you give me.";
@@ -694,8 +695,13 @@ const WEATHER_RE = /\b(weather|rain|temperature|forecast|pack|wear|umbrella|cold
 const POLICY_RE = /\b(expense|claim|receipt|photo|limit|policy|reimburse|ticket|flag|category|meal|meals|hotel|lodging|airfare|threshold)\b/i;
 const BUSINESS_RE = /\b(my trips?|my tickets?|status of|TKT-\d+|TRP-\d+)\b/i;
 const GREETING_RE = /^(hi|hello|hey|thanks|thank you|bye)\b/i;
+const INJECTION_RE = /(ignore (all |the )?previous|system prompt|act as (a )?manager|developer mode)/i;
+const WEATHER_DISCLAIMER = "Weather guidance is informational only. It is not an approval, a booking or a safety guarantee.";
 
-function mockWeatherCard(place, from, to) {
+const tool = (tool_name, status = "ok", error_code = null) => ({ tool_name, status, error_code, latency_ms: 12 });
+const fmtDay = (iso) => new Date(`${iso}T00:00:00`).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
+
+function mockWeather(place, from, to) {
   const today = todayISO();
   const horizonEnd = addDaysISO(today, 15);
   const dates = [];
@@ -703,80 +709,99 @@ function mockWeatherCard(place, from, to) {
   const covered = dates.filter((d) => d >= today && d <= horizonEnd);
   const uncovered = dates.filter((d) => !covered.includes(d));
   const days = covered.map((d, i) => ({
-    forecast_date: d,
+    date: d,
     condition: i % 3 === 1 ? "Light rain" : "Partly cloudy",
-    temp_min_c: 20 + (i % 2),
-    temp_max_c: 29 + (i % 3),
-    precipitation_probability_max_pct: i % 3 === 1 ? 60 : 15,
+    temp_min_c: 19.4 + (i % 2),
+    temp_max_c: 26.8 + (i % 3) * 0.5,
+    precipitation_probability_max_pct: i % 3 === 1 ? 70 : 20,
     precipitation_sum_mm: i % 3 === 1 ? 3.2 : 0,
     wind_speed_max_kmh: 14 + i,
   }));
   const rainy = days.some((d) => d.precipitation_probability_max_pct >= 50);
+  const lows = days.map((d) => d.temp_min_c);
   const highs = days.map((d) => d.temp_max_c);
+  const resolved = `${place} (mock data)`;
+  const range = `${fmtDay(from)} to ${fmtDay(to)}`;
+  const retrieved = nowISO();
+
+  const summary = days.length
+    ? `${place} looks ${rainy ? "wet" : "mostly dry"} for your trip: temperatures between ${Math.min(...lows)} °C and ${Math.max(...highs)} °C${rainy ? ", rain chance up to 70%" : ""}.`
+    : `Forecast not available for ${resolved} on ${range}.`;
+  const checklist = days.length
+    ? [rainy ? "Umbrella or raincoat - rain chance up to 70%" : "Sunglasses for bright afternoons", "Light, breathable clothing", `A light layer for the ${Math.min(...lows)} °C mornings`]
+    : ["Comfortable shoes for meetings and getting around", "Your ID and travel documents", "Phone charger and a power bank"];
+  const limitations = [`Forecast from Open-Meteo (mock), retrieved ${formatTime(retrieved)}; forecasts can change.`];
+  if (uncovered.length) limitations.push(`Forecast not available for ${fmtDay(uncovered[0])} to ${fmtDay(uncovered[uncovered.length - 1])} (outside the 16-day forecast range). Check again closer to travel.`);
+
   return {
-    destination: place,
-    forecast_basis: {
-      source: "Open-Meteo (mock)", resolved_location: `${place} (mock data)`, date_from: from, date_to: to,
-      forecast_available: covered.length > 0,
-      coverage: covered.length === dates.length ? "FULL" : covered.length ? "PARTIAL" : "NONE",
-      covered_dates: covered, uncovered_dates: uncovered, retrieved_at: nowISO(),
+    covered,
+    reply: days.length
+      ? `${summary}\n\nWhat to pack:\n${checklist.map((c) => `• ${c}`).join("\n")}\n\nForecasts can change, so check again a day before you travel.`
+      : `Forecast not available for ${resolved} on ${range}. Forecasts cover today plus 15 days, so please ask again closer to your travel date.`,
+    weather: {
+      destination: place,
+      forecast_basis: {
+        source: "Open-Meteo", resolved_location: resolved, date_from: from, date_to: to,
+        forecast_available: covered.length > 0,
+        coverage: covered.length === dates.length ? "FULL" : covered.length ? "PARTIAL" : "NONE",
+        covered_dates: covered, uncovered_dates: uncovered, retrieved_at: retrieved,
+      },
+      weather_summary: summary,
+      travel_checklist: checklist,
+      limitations,
+      disclaimer: WEATHER_DISCLAIMER,
+      days, // proposed field (open team decision); the card shows a daily table only when it is present
     },
-    days,
-    weather_summary: days.length
-      ? `Highs ${Math.min(...highs)}–${Math.max(...highs)} °C${rainy ? ", with rain likely on some days" : ""}.`
-      : "No forecast values are available for these dates.",
-    travel_checklist: days.length
-      ? [rainy ? "Carry a compact umbrella" : "Sunglasses for bright afternoons", "Light, breathable clothing", "Keep water with you"]
-      : ["Check the forecast again within 16 days of travel", "Pack for the season in general", "Keep travel documents handy"],
-    limitations: ["Forecasts change; check again closer to travel."],
-    disclaimer: "AI travel advice is informational only. It is not an approval, a booking or a safety guarantee.",
   };
 }
 
+function formatTime(iso) {
+  return new Date(iso).toLocaleString("en-GB", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" });
+}
+
 function mockVeraAnswer(text, session) {
-  const none = { citations: [], tools: [], weather_card: null };
+  const base = { intent: "OUT_OF_SCOPE", citations: [], weather: null, tools_used: [], guardrail_status: "PASSED", status: "COMPLETED", error_code: null, retryable: false };
+
+  if (INJECTION_RE.test(text)) {
+    return { ...base, guardrail_status: "INPUT_BLOCKED", status: "BLOCKED",
+      reply: "I can't help with that request. I can answer questions about the expense policy, using TravelDesk, or the weather for a destination and dates you give me." };
+  }
   if (BUSINESS_RE.test(text)) {
-    return { ...none, reply: "I can't see your trips or tickets. Open My Trips to check them." };
+    return { ...base, reply: "I can't see your trips, tickets or expenses. Please open My Trips to check them." };
   }
   if (WEATHER_RE.test(text)) {
-    if (/\b(pack|wear)\b/i.test(text) && session.lastCard) {
-      return { ...none, reply: "Based on the forecast in this chat, here's what to pack.", weather_card: session.lastCard };
+    const w = { ...base, intent: "WEATHER" };
+    if (/\b(pack|wear)\b/i.test(text) && session.lastWeather) {
+      return { ...w, reply: `Based on the forecast in this chat:\n\nWhat to pack:\n${session.lastWeather.travel_checklist.map((c) => `• ${c}`).join("\n")}`, weather: session.lastWeather };
     }
     const dates = text.match(/\d{4}-\d{2}-\d{2}/g) ?? [];
     const place = text.match(/\b(?:in|to|for)\s+([A-Z][a-zA-Z]+)/)?.[1];
-    if (!place || dates.length < 2) {
-      return { ...none, reply: "Which destination, start date and end date? For example: weather in Bengaluru from 2026-11-24 to 2026-11-27." };
+    if (!place) return { ...w, reply: "Sure - which destination and dates? For example: weather in Bengaluru from 2026-11-24 to 2026-11-27." };
+    if (dates.length < 2) return { ...w, reply: `Sure - which dates will you be in ${place}? Please give a start and end date (YYYY-MM-DD in mock mode).` };
+    if (/simulate timeout/i.test(text)) {
+      return { ...w, status: "FAILED", error_code: "WEATHER_TIMEOUT", retryable: true,
+        tools_used: [tool("get_weather_forecast", "error", "WEATHER_TIMEOUT")],
+        reply: "The weather service did not answer in time. Please try again." };
     }
-    const card = mockWeatherCard(place, dates[0], dates[1]);
-    session.lastCard = card;
-    return {
-      reply: card.days.length ? `Here's the forecast for ${place}.` : `Forecast not available for those dates in ${place}.`,
-      citations: [],
-      tools: [{ tool_name: "get_weather_forecast", status: "ok", latency_ms: 420 }],
-      weather_card: card,
-    };
+    const result = mockWeather(place, dates[0], dates[1]);
+    session.lastWeather = result.weather;
+    return { ...w, reply: result.reply, weather: result.weather,
+      tools_used: [tool("get_weather_forecast", "ok", result.covered.length ? null : "FORECAST_OUT_OF_RANGE")] };
   }
   if (POLICY_RE.test(text)) {
-    const tools = [{ tool_name: "search_expense_policy", status: "ok", latency_ms: 180 }];
+    const p = { ...base, intent: "POLICY", tools_used: [tool("search_expense_policy")] };
     if (/\bmeals?\b/i.test(text)) {
-      return {
-        reply: "A MEALS line above INR 1,500 goes to your manager for review; up to 1,500 is fine. [POL-6.2]",
-        citations: [{ ref_id: "POL-6.2", title: "Review thresholds", similarity: 0.82 }], tools, weather_card: null,
-      };
+      return { ...p, reply: "A MEALS line above INR 1,500 goes to your manager for review; up to 1,500 is fine. [POL-6.2]",
+        citations: [{ ref_id: "POL-6.2", title: "Review thresholds", similarity: 0.82 }] };
     }
     if (/\b(receipt|photo)\b/i.test(text)) {
-      return {
-        reply: "Every expense line needs its own receipt photo (JPEG, PNG or WEBP, up to 5 MB). A line without one can't be submitted. [POL-7.1]",
-        citations: [{ ref_id: "POL-7.1", title: "Receipt photos", similarity: 0.79 }], tools, weather_card: null,
-      };
+      return { ...p, reply: "Every expense line needs its own receipt photo (JPEG, PNG or WEBP, up to 5 MB). A line without one can't be submitted. [POL-7.1]",
+        citations: [{ ref_id: "POL-7.1", title: "Receipt photos", similarity: 0.79 }] };
     }
-    return {
-      reply: "Review thresholds per line: Airfare 20,000, Lodging 7,500, Meals 1,500, Ground transport 3,000, Incidentals 1,000 INR. Above these, a ticket goes to your manager. [POL-6.2]",
-      citations: [{ ref_id: "POL-6.2", title: "Review thresholds", similarity: 0.71 }], tools, weather_card: null,
-    };
+    return { ...p, reply: "I couldn't find this in the expense policy. Please contact Finance Operations at finance.ops@veridian.example." };
   }
-  if (GREETING_RE.test(text)) return { ...none, reply: "Hello! Ask me about the expense policy or the weather for a trip." };
-  return { ...none, reply: "I can only help with the expense policy, using TravelDesk, and the weather for a destination and dates you give me." };
+  if (GREETING_RE.test(text)) return { ...base, intent: "GREETING", reply: "Hello! Ask me about the expense policy or the weather for a trip." };
+  return { ...base, reply: "I can only help with the expense policy, using TravelDesk, and the weather for a destination and dates you give me." };
 }
 
 function ownSession(sessionId, me) {
@@ -820,16 +845,10 @@ export async function mockChatSend(sessionId, message) {
   s.preview = s.preview ?? text.slice(0, 60);
   s.messages.push(
     { message_id: s.messages.length + 1, message_type: "human_message", content: text, metadata: null, created_at: now },
-    {
-      message_id: s.messages.length + 2, message_type: "ai_response", content: answer.reply,
-      metadata: { citations: answer.citations, weather_card: answer.weather_card }, created_at: now,
-    },
+    { message_id: s.messages.length + 2, message_type: "ai_response", content: answer.reply,
+      metadata: { citations: answer.citations, weather: answer.weather }, created_at: now },
   );
-  return {
-    session_id: sessionId, conversation_id: crypto.randomUUID(), turn_number: s.turn_count,
-    reply: answer.reply, citations: answer.citations, tools_used: answer.tools, weather_card: answer.weather_card,
-    guardrail_status: "PASSED", status: "COMPLETED", created_at: now,
-  };
+  return { session_id: sessionId, conversation_id: crypto.randomUUID(), turn_number: s.turn_count, ...answer, created_at: now };
 }
 
 export async function mockChatList() {
@@ -848,7 +867,10 @@ export async function mockChatHistory(sessionId) {
   await delay(300);
   const me = requireMockUser("EMPLOYEE");
   const s = ownSession(sessionId, me);
-  return { session_id: sessionId, status: s.status, messages: s.messages.map((m, i) => ({ ...m, sequence_no: i + 1 })) };
+  return {
+    session_id: sessionId, status: s.status, read_only: s.status !== "ACTIVE",
+    messages: s.messages.map((m, i) => ({ ...m, sequence_no: i + 1 })),
+  };
 }
 
 export async function mockChatClose(sessionId) {
