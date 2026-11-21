@@ -1,2 +1,8 @@
-// Loading indicator.
-// Owner: Mradul (M3)  |  Spec: Agile Spec v2.0 > UI specification
+export default function Loader({ label = "Loading…" }) {
+  return (
+    <div className="loader" role="status">
+      <span className="loader__spinner" aria-hidden="true" />
+      <span>{label}</span>
+    </div>
+  );
+}

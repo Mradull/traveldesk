@@ -1,122 +1,79 @@
-import { useState } from 'react'
-import heroImg from './assets/hero.png'
-import reactLogo from './assets/react.svg'
-import viteLogo from './assets/vite.svg'
-import './App.css'
+import { Navigate, Outlet, Route, Routes } from "react-router-dom";
+import { useAuth } from "./context/AuthContext";
+import { homePathFor } from "./utils/constants";
+import EmployeeRoute from "./routes/EmployeeRoute";
+import ManagerRoute from "./routes/ManagerRoute";
+import NavBar from "./components/NavBar";
+import Loader from "./components/Loader";
+import LoginPage from "./pages/LoginPage";
 
-function App() {
-  const [count, setCount] = useState(0)
+// Employee view
+import DashboardPage from "./pages/employee/DashboardPage";
+import MyTripsPage from "./pages/employee/MyTripsPage";
+import CreateTripPage from "./pages/employee/CreateTripPage";
+import TripDetailPage from "./pages/employee/TripDetailPage";
+import RaiseTicketPage from "./pages/employee/RaiseTicketPage";
+import TicketDetailPage from "./pages/employee/TicketDetailPage";
 
+// Manager view
+import ApprovalsPage from "./pages/manager/ApprovalsPage";
+import TripReviewPage from "./pages/manager/TripReviewPage";
+import TicketReviewPage from "./pages/manager/TicketReviewPage";
+import SpendingSummaryPage from "./pages/manager/SpendingSummaryPage";
+
+/** Sidebar on the left, top bar with the signed-in user, page content */
+function AppLayout() {
+  const { user, isManager } = useAuth();
+  const initials = (user?.full_name ?? "?").split(" ").map((p) => p[0]).join("").slice(0, 2);
   return (
-    <>
-      <section id="center">
-        <div className="hero">
-          <img src={heroImg} className="base" width="170" height="179" alt="" />
-          <img src={reactLogo} className="framework" alt="React logo" />
-          <img src={viteLogo} className="vite" alt="Vite logo" />
-        </div>
-        <div>
-          <h1>Get started</h1>
-          <p>
-            Edit <code>src/App.jsx</code> and save to test <code>HMR</code>
-          </p>
-        </div>
-        <button
-          type="button"
-          className="counter"
-          onClick={() => setCount((count) => count + 1)}
-        >
-          Count is {count}
-        </button>
-      </section>
-
-      <div className="ticks"></div>
-
-      <section id="next-steps">
-        <div id="docs">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#documentation-icon"></use>
-          </svg>
-          <h2>Documentation</h2>
-          <p>Your questions, answered</p>
-          <ul>
-            <li>
-              <a href="https://vite.dev/" target="_blank">
-                <img className="logo" src={viteLogo} alt="" />
-                Explore Vite
-              </a>
-            </li>
-            <li>
-              <a href="https://react.dev/" target="_blank">
-                <img className="button-icon" src={reactLogo} alt="" />
-                Learn more
-              </a>
-            </li>
-          </ul>
-        </div>
-        <div id="social">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#social-icon"></use>
-          </svg>
-          <h2>Connect with us</h2>
-          <p>Join the Vite community</p>
-          <ul>
-            <li>
-              <a href="https://github.com/vitejs/vite" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#github-icon"></use>
-                </svg>
-                GitHub
-              </a>
-            </li>
-            <li>
-              <a href="https://chat.vite.dev/" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#discord-icon"></use>
-                </svg>
-                Discord
-              </a>
-            </li>
-            <li>
-              <a href="https://x.com/vite_js" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#x-icon"></use>
-                </svg>
-                X.com
-              </a>
-            </li>
-            <li>
-              <a href="https://bsky.app/profile/vite.dev" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#bluesky-icon"></use>
-                </svg>
-                Bluesky
-              </a>
-            </li>
-          </ul>
-        </div>
-      </section>
-
-      <div className="ticks"></div>
-      <section id="spacer"></section>
-    </>
-  )
+    <div className="shell">
+      <NavBar />
+      <div className="shell__main">
+        <header className="topbar">
+          <div className="user-chip">
+            <span className="user-chip__avatar" aria-hidden="true">{initials}</span>
+            <div>
+              <div className="user-chip__name">{user?.full_name}</div>
+              <div className="user-chip__role">{isManager ? "Manager" : "Employee"}</div>
+            </div>
+          </div>
+        </header>
+        <main className="container">
+          <Outlet />
+        </main>
+      </div>
+    </div>
+  );
 }
 
-export default App
+function HomeRedirect() {
+  const { user, checking } = useAuth();
+  if (checking) return <Loader label="Checking your session…" />;
+  return <Navigate to={user ? homePathFor(user) : "/login"} replace />;
+}
+
+export default function App() {
+  return (
+    <Routes>
+      <Route path="/login" element={<LoginPage />} />
+
+      <Route element={<EmployeeRoute><AppLayout /></EmployeeRoute>}>
+        <Route path="/dashboard" element={<DashboardPage />} />
+        <Route path="/trips" element={<MyTripsPage />} />
+        <Route path="/trips/new" element={<CreateTripPage />} />
+        <Route path="/trips/:tripId" element={<TripDetailPage />} />
+        <Route path="/trips/:tripId/expenses/new" element={<RaiseTicketPage />} />
+        <Route path="/tickets/:ticketId" element={<TicketDetailPage />} />
+      </Route>
+
+      <Route element={<ManagerRoute><AppLayout /></ManagerRoute>}>
+        <Route path="/manager/approvals" element={<ApprovalsPage />} />
+        <Route path="/manager/trips/:tripId" element={<TripReviewPage />} />
+        <Route path="/manager/tickets/:ticketId" element={<TicketReviewPage />} />
+        <Route path="/manager/reports" element={<SpendingSummaryPage />} />
+      </Route>
+
+      <Route path="*" element={<HomeRedirect />} />
+    </Routes>
+  );
+}
