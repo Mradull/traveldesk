@@ -1,0 +1,15 @@
+{"id": "routing-01", "message": "What will the weather be in Pune from 3 to 6 December?", "previous_intent": null, "expected_intent": "WEATHER", "expected_tools": ["get_weather_forecast"]}
+{"id": "routing-02", "message": "Is it going to rain in Chennai next week?", "previous_intent": null, "expected_intent": "WEATHER", "expected_tools": ["get_weather_forecast"]}
+{"id": "routing-03", "message": "How cold will Shimla be from 10 to 12 December?", "previous_intent": null, "expected_intent": "WEATHER", "expected_tools": ["get_weather_forecast"]}
+{"id": "routing-04", "message": "What is the meal limit for one expense line?", "previous_intent": null, "expected_intent": "POLICY", "expected_tools": ["search_expense_policy"]}
+{"id": "routing-05", "message": "Do I need a receipt photo for every expense?", "previous_intent": null, "expected_intent": "POLICY", "expected_tools": ["search_expense_policy"]}
+{"id": "routing-06", "message": "How do I raise an expense ticket in TravelDesk?", "previous_intent": null, "expected_intent": "POLICY", "expected_tools": ["search_expense_policy"]}
+{"id": "routing-07", "message": "What is the meal limit, and will it rain in Mumbai from 5 to 7 December?", "previous_intent": null, "expected_intent": "POLICY_AND_WEATHER", "expected_tools": ["search_expense_policy", "get_weather_forecast"]}
+{"id": "routing-08", "message": "Can I claim a taxi as an expense, and what is the weather in Delhi from 8 to 9 December?", "previous_intent": null, "expected_intent": "POLICY_AND_WEATHER", "expected_tools": ["search_expense_policy", "get_weather_forecast"]}
+{"id": "routing-09", "message": "Hello", "previous_intent": null, "expected_intent": "GREETING", "expected_tools": []}
+{"id": "routing-10", "message": "Thanks, bye!", "previous_intent": null, "expected_intent": "GREETING", "expected_tools": []}
+{"id": "routing-11", "message": "Tell me a joke about cats", "previous_intent": null, "expected_intent": "OUT_OF_SCOPE", "expected_tools": []}
+{"id": "routing-12", "message": "Who won the football world cup in 2018?", "previous_intent": null, "expected_intent": "OUT_OF_SCOPE", "expected_tools": []}
+{"id": "routing-13", "message": "And on the 7th?", "previous_intent": "WEATHER", "expected_intent": "WEATHER", "expected_tools": ["get_weather_forecast"]}
+{"id": "routing-14", "message": "And for lodging?", "previous_intent": "POLICY", "expected_intent": "POLICY", "expected_tools": ["search_expense_policy"]}
+{"id": "routing-15", "message": "What about the next day?", "previous_intent": "WEATHER", "expected_intent": "WEATHER", "expected_tools": ["get_weather_forecast"]}

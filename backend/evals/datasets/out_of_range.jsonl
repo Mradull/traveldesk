@@ -1,0 +1,3 @@
+{"id": "out_of_range-01", "destination": "Singapore", "start_offset": 40, "end_offset": 44, "note": "far future"}
+{"id": "out_of_range-02", "destination": "Goa", "start_offset": 20, "end_offset": 25, "note": "just beyond the 16-day horizon"}
+{"id": "out_of_range-03", "destination": "Mumbai", "start_offset": -5, "end_offset": -2, "note": "dates in the past"}

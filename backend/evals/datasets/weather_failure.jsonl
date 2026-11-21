@@ -1,0 +1,4 @@
+{"id": "weather_failure-01", "destination": "Pune", "start_offset": 2, "end_offset": 4, "failure": "timeout"}
+{"id": "weather_failure-02", "destination": "Pune", "start_offset": 2, "end_offset": 4, "failure": "503"}
+{"id": "weather_failure-03", "destination": "Pune", "start_offset": 2, "end_offset": 4, "failure": "429"}
+{"id": "weather_failure-04", "destination": "Pune", "start_offset": 2, "end_offset": 4, "failure": "invalid_json"}
