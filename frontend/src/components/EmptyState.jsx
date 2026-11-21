@@ -1,2 +1,9 @@
-// Safe empty state.
-// Owner: Mradul (M3)  |  Spec: Agile Spec v2.0 > UI specification
+export default function EmptyState({ title, message, action }) {
+  return (
+    <div className="empty">
+      <h2>{title}</h2>
+      {message && <p>{message}</p>}
+      {action}
+    </div>
+  );
+}
