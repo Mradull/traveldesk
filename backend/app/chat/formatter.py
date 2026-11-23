@@ -38,11 +38,12 @@ def forecast_basis(r: WeatherForecastResult) -> ForecastBasis:
 
 
 def weather_answer(r: WeatherForecastResult, out: VeraWeatherLLMOutput) -> VeraWeatherAnswer:
-    """The brief's five fields: destination + forecast_basis + limitations come from CODE (facts the model
-    must not invent); weather_summary + travel_checklist come from the checked LLM output or the template."""
+    """The brief's five fields: destination + forecast_basis + limitations (+ the daily table) come from CODE
+    (facts the model must not invent); weather_summary + travel_checklist come from the checked LLM output
+    or the template."""
     return VeraWeatherAnswer(destination=r.destination, forecast_basis=forecast_basis(r),
                              weather_summary=out.weather_summary, travel_checklist=out.travel_checklist,
-                             limitations=_limitations(r))
+                             limitations=_limitations(r), days=r.days)   # daily table: exact tool values
 
 
 def weather_reply_text(answer: VeraWeatherAnswer) -> str:
@@ -93,14 +94,16 @@ def template_weather_output(r: WeatherForecastResult) -> VeraWeatherLLMOutput:
     rainy = any((d.precipitation_probability_max_pct or 0) > 0 or (d.precipitation_sum_mm or 0) > 0
                 or d.weather_code in RAIN_CODES for d in r.days)
     checklist = []
+    # each condition tip names its reason, using only numbers from the forecast
     if rainy:
-        checklist.append("Carry an umbrella or raincoat and allow extra travel time")
+        reason = f"rain chance up to {max(rain_pct)}%" if rain_pct and max(rain_pct) > 0 else "rain in the forecast"
+        checklist.append(f"Umbrella or raincoat, and extra travel time - {reason}")
     if lows and min(lows) <= COLD_MAX_C:
-        checklist.append("Pack warm layers")
+        checklist.append(f"Warm layers - lows down to {min(lows)} °C")
     if highs and max(highs) >= HOT_MIN_C:
-        checklist.append("Wear light clothing, carry water and use sun protection")
+        checklist.append(f"Light clothing, water and sun protection - highs up to {max(highs)} °C")
     if winds and max(winds) >= STRONG_WIND_KMH:
-        checklist.append("Secure loose items and check transport updates")
+        checklist.append(f"Strong wind up to {max(winds)} km/h - secure loose items and check transport updates")
     # general items (no weather claim) to reach at least 3 tips
     for general in ("Comfortable shoes for meetings and getting around", "Your ID and travel documents",
                     "Phone charger and a power bank"):
