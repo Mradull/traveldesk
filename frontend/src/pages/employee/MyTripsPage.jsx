@@ -6,6 +6,7 @@ import { useApi } from "../../hooks/useApi";
 import { listMyTrips } from "../../api/trips";
 import { TRIP_FILTERS } from "../../utils/constants";
 import { formatDate, formatDateRange, formatINR, todayISO } from "../../utils/format";
+import { canAddExpense, canEditTrip } from "../../utils/tripRules";
 import Loader from "../../components/Loader";
 import ErrorBanner from "../../components/ErrorBanner";
 import EmptyState from "../../components/EmptyState";
@@ -68,16 +69,16 @@ export default function MyTripsPage() {
                     <td>{formatDateRange(t.start_date, t.end_date)}</td>
                     <td>
                       <StatusBadge status={t.status_label} />
-                      {t.trip_state === "ACTIVE" && <div className="muted small">Auto-completes {formatDate(t.auto_close_on)}</div>}
+                      {t.trip_state === "ACTIVE" && <div className="muted small">Auto-completes {formatDate(t.auto_complete_on)}</div>}
                     </td>
                     <td className="num">{t.ticket_count}</td>
                     <td className="num">{formatINR(t.total_claimed)}</td>
                     <td>
                       <div className="row-actions">
-                        {t.can_raise_ticket && (
+                        {canAddExpense(t) && (
                           <Link className="btn btn--primary btn--small" to={`/trips/${t.trip_id}/expenses/new`}>Add expense</Link>
                         )}
-                        {t.can_edit && (
+                        {canEditTrip(t) && (
                           <Link className="btn btn--secondary btn--small" to={`/trips/${t.trip_id}?edit=1`}>Edit</Link>
                         )}
                         <Link className="btn btn--ghost btn--small" to={`/trips/${t.trip_id}`}>View</Link>

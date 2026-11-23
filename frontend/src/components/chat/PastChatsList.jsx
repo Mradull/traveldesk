@@ -19,7 +19,7 @@ export default function PastChatsList({ onOpen }) {
           {ended.map((s) => (
             <li key={s.session_id}>
               <button type="button" className="past-chats__item" onClick={() => onOpen(s.session_id)}>
-                <span>{s.first_message_preview || "Chat with no messages"}</span>
+                <span>{s.preview || "Chat with no messages"}</span>
                 <span className="muted small">
                   {formatDateTime(s.started_at)}, {s.turn_count} {s.turn_count === 1 ? "message" : "messages"}
                 </span>

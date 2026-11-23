@@ -7,6 +7,7 @@ import { useApi } from "../../hooks/useApi";
 import { getEmployeeDashboard } from "../../api/dashboard";
 import { EXPENSE_CATEGORIES } from "../../utils/constants";
 import { formatDateRange, formatINR } from "../../utils/format";
+import { canAddExpense } from "../../utils/tripRules";
 import Loader from "../../components/Loader";
 import ErrorBanner from "../../components/ErrorBanner";
 import StatusBadge from "../../components/StatusBadge";
@@ -69,7 +70,7 @@ export default function DashboardPage() {
                       <td>{formatDateRange(t.start_date, t.end_date)}</td>
                       <td><StatusBadge status={t.status_label} /></td>
                       <td>
-                        {t.can_raise_ticket
+                        {canAddExpense(t)
                           ? <Link className="btn btn--ghost btn--small" to={`/trips/${t.trip_id}/expenses/new`}>Add expense</Link>
                           : <Link className="btn btn--ghost btn--small" to={`/trips/${t.trip_id}`}>View</Link>}
                       </td>

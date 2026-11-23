@@ -5,6 +5,7 @@ import { useApi } from "../../hooks/useApi";
 import { getTicket } from "../../api/tickets";
 import { REJECTION_REASONS } from "../../utils/constants";
 import { formatDateTime, formatINR } from "../../utils/format";
+import { idFromCode } from "../../utils/tripRules";
 import Loader from "../../components/Loader";
 import ErrorBanner from "../../components/ErrorBanner";
 import StatusBadge from "../../components/StatusBadge";
@@ -25,6 +26,9 @@ export default function TicketDetailPage() {
   const decided = ticket.status !== "PENDING";
   const managerDecision = ticket.history.find((h) => h.reviewer_type === "MANAGER");
   const replaceUrl = `/trips/${ticket.trip_id}/expenses/new?replaces=${ticket.ticket_id}`;
+  // The contract sends only the codes of linked tickets; the code gives the id
+  const replacesId = ticket.replacement_of_ticket_id ?? idFromCode(ticket.replacement_of_ticket_code);
+  const replacedById = ticket.replaced_by_ticket_id ?? idFromCode(ticket.replaced_by_ticket_code);
 
   return (
     <section>
@@ -36,16 +40,16 @@ export default function TicketDetailPage() {
           <h1>{ticket.ticket_code}</h1>
           <StatusBadge status={ticket.status} />
         </div>
-        {ticket.can_replace && <Link className="btn btn--primary" to={replaceUrl}>Create new ticket</Link>}
+        {ticket.can_create_replacement && <Link className="btn btn--primary" to={replaceUrl}>Create new ticket</Link>}
       </div>
 
-      {(ticket.replaces_ticket_code || ticket.replaced_by_ticket_code) && (
+      {(ticket.replacement_of_ticket_code || ticket.replaced_by_ticket_code) && (
         <div className="replace-links">
-          {ticket.replaces_ticket_code && (
-            <span>Replaces <Link to={`/tickets/${ticket.replacement_of_ticket_id}`}>{ticket.replaces_ticket_code}</Link></span>
+          {ticket.replacement_of_ticket_code && (
+            <span>Replaces <Link to={`/tickets/${replacesId}`}>{ticket.replacement_of_ticket_code}</Link></span>
           )}
           {ticket.replaced_by_ticket_code && (
-            <span>Replaced by <Link to={`/tickets/${ticket.replaced_by_ticket_id}`}>{ticket.replaced_by_ticket_code}</Link></span>
+            <span>Replaced by <Link to={`/tickets/${replacedById}`}>{ticket.replaced_by_ticket_code}</Link></span>
           )}
         </div>
       )}
@@ -55,10 +59,10 @@ export default function TicketDetailPage() {
           <div>
             <p><strong>Rejected by {managerDecision.reviewer_name}: {reasonLabel(managerDecision.rejection_reason)}</strong></p>
             <p>{managerDecision.review_comment}</p>
-            {ticket.can_replace && (
+            {ticket.can_create_replacement && (
               <p className="small">To correct it, create a new ticket and upload clear photos again. This ticket stays unchanged.</p>
             )}
-            {!ticket.can_replace && !ticket.replaced_by_ticket_code && (
+            {!ticket.can_create_replacement && !ticket.replaced_by_ticket_code && (
               <p className="small">The trip is no longer active, so a new ticket can't be created.</p>
             )}
           </div>

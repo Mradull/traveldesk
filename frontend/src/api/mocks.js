@@ -238,11 +238,22 @@ function enrichTrip(trip, me) {
     can_edit: isOwner && trip.approval_status === "IN_PROGRESS",
     can_raise_ticket: isOwner && active && todayISO() < autoOn,
     can_complete: isApprover && active && todayISO() >= trip.end_date,
-    auto_close_on: autoOn,
+    can_decide: isApprover && trip.approval_status === "IN_PROGRESS" && todayISO() < autoOn,
+    auto_complete_on: autoOn,
     ticket_count: tickets.length,
     pending_ticket_count: tickets.filter((k) => k.status === "PENDING").length,
     total_claimed: tickets.filter((k) => k.status !== "REJECTED").reduce((s, k) => s + k.total_amount, 0),
     tickets,
+  };
+}
+
+/** GET /trips list rows (TripListItemOut) carry fewer fields than the detail; mirror that */
+function listItem(trip, me) {
+  const t = enrichTrip(trip, me);
+  return {
+    trip_id: t.trip_id, trip_code: t.trip_code, employee_name: t.employee_name, destination: t.destination,
+    start_date: t.start_date, end_date: t.end_date, approval_status: t.approval_status, trip_state: t.trip_state,
+    status_label: t.status_label, auto_complete_on: t.auto_complete_on, ticket_count: t.ticket_count, total_claimed: t.total_claimed,
   };
 }
 
@@ -261,7 +272,7 @@ export async function mockListTrips({ when = "all" } = {}) {
     .filter((t) => t.employee_id === me.employee_id)
     .filter((t) => when === "all" || (when === "upcoming" ? t.end_date >= today : t.end_date < today))
     .sort((a, b) => b.start_date.localeCompare(a.start_date))
-    .map((t) => enrichTrip(t, me));
+    .map((t) => listItem(t, me));
 }
 
 export async function mockGetTrip(tripId) {
@@ -356,7 +367,7 @@ export async function mockListPendingTrips() {
   return loadTrips()
     .filter((t) => t.approval_status === "IN_PROGRESS" && reportsTo(me, t.employee_id))
     .sort((a, b) => a.created_at.localeCompare(b.created_at))
-    .map((t) => enrichTrip(t, me));
+    .map((t) => listItem(t, me));
 }
 
 export async function mockListTripsToComplete() {
@@ -365,7 +376,7 @@ export async function mockListTripsToComplete() {
   return loadTrips()
     .filter((t) => t.trip_state === "ACTIVE" && reportsTo(me, t.employee_id) && todayISO() >= t.end_date)
     .sort((a, b) => a.end_date.localeCompare(b.end_date))
-    .map((t) => enrichTrip(t, me));
+    .map((t) => listItem(t, me));
 }
 
 export async function mockListPendingTickets() {
@@ -455,16 +466,12 @@ function ticketDetail(ticket, trips = loadTrips()) {
     ...ticket,
     trip_code: trip.trip_code,
     destination: trip.destination,
-    trip_start_date: trip.start_date,
-    trip_end_date: trip.end_date,
-    trip_purpose: trip.purpose,
-    trip_status_label: statusLabel(trip.approval_status, trip.trip_state),
     employee_name: userById(ticket.employee_id).full_name,
-    replaces_ticket_code: all.find((k) => k.ticket_id === ticket.replacement_of_ticket_id)?.ticket_code ?? null,
-    replaced_by_ticket_id: replacedBy?.ticket_id ?? null,
+    // Like the real API: only the CODES of linked tickets
+    replacement_of_ticket_code: all.find((k) => k.ticket_id === ticket.replacement_of_ticket_id)?.ticket_code ?? null,
     replaced_by_ticket_code: replacedBy?.ticket_code ?? null,
     // A rejected ticket can be replaced once, while its trip is still Approved - Active
-    can_replace: ticket.status === "REJECTED" && !replacedBy && tripActive,
+    can_create_replacement: ticket.status === "REJECTED" && !replacedBy && tripActive,
   };
 }
 
@@ -546,7 +553,7 @@ export async function mockGetTicket(ticketId) {
     throw apiError(404, "NOT_FOUND");
   }
   const detail = ticketDetail(ticket);
-  return { ...detail, can_replace: detail.can_replace && ticket.employee_id === me.employee_id };
+  return { ...detail, can_create_replacement: detail.can_create_replacement && ticket.employee_id === me.employee_id };
 }
 
 export async function mockDecideTicket(ticketId, body) {
@@ -602,7 +609,8 @@ export async function mockGetEmployeeDashboard() {
     open_trips: trips.filter((t) => t.trip_state === "ACTIVE").length,
     pending_trip_approval: trips.filter((t) => t.approval_status === "IN_PROGRESS").length,
     total_claimed: claims.reduce((s, k) => s + k.total_amount, 0),
-    recent_trips: [...trips].sort((a, b) => b.created_at.localeCompare(a.created_at)).slice(0, 5),
+    recent_trips: [...trips].sort((a, b) => b.created_at.localeCompare(a.created_at)).slice(0, 5)
+      .map((t) => listItem(t, me)),
     spend_by_category: Object.entries(byCategory)
       .map(([expense_type, total_amount]) => ({ expense_type, total_amount }))
       .sort((a, b) => b.total_amount - a.total_amount),
@@ -859,7 +867,7 @@ export async function mockChatList() {
     .sort((a, b) => b.started_at.localeCompare(a.started_at))
     .map((s) => ({
       session_id: s.session_id, status: s.status, started_at: s.started_at, closed_at: s.closed_at,
-      close_reason: s.close_reason, first_message_preview: s.preview, turn_count: s.turn_count,
+      close_reason: s.close_reason, preview: s.preview, turn_count: s.turn_count,
     }));
 }
 

@@ -4,7 +4,7 @@ import { Link, useSearchParams } from "react-router-dom";
 import { useApi } from "../../hooks/useApi";
 import { listPendingTrips, listTripsToComplete } from "../../api/trips";
 import { listPendingTickets } from "../../api/tickets";
-import { ageLabel, formatDate, formatDateRange, formatINR, tripLengthDays } from "../../utils/format";
+import { ageLabel, formatDate, formatDateRange, formatINR, todayISO, tripLengthDays } from "../../utils/format";
 import Loader from "../../components/Loader";
 import ErrorBanner from "../../components/ErrorBanner";
 import EmptyState from "../../components/EmptyState";
@@ -15,6 +15,14 @@ const TABS = [
   { value: "tickets", label: "Expense tickets", empty: "No flagged expense tickets to review." },
   { value: "complete", label: "Trips to complete", empty: "No finished trips waiting to be completed." },
 ];
+
+/** "in 12 days", "today", "started 3 days ago" (the list has no created date, so we show how soon it starts) */
+function startsLabel(startDate) {
+  const days = tripLengthDays(todayISO(), startDate) - 1;
+  if (days === 0) return "today";
+  if (days > 0) return `in ${days} ${days === 1 ? "day" : "days"}`;
+  return `started ${-days} ${days === -1 ? "day" : "days"} ago`;
+}
 
 function Table({ head, children }) {
   return (
@@ -33,15 +41,14 @@ function Table({ head, children }) {
 
 function TripRequests({ rows }) {
   return (
-    <Table head={[{ label: "Trip" }, { label: "Employee" }, { label: "Destination" }, { label: "Dates" }, { label: "Purpose" }, { label: "Waiting" }, { label: "" }]}>
+    <Table head={[{ label: "Trip" }, { label: "Employee" }, { label: "Destination" }, { label: "Dates" }, { label: "Starts" }, { label: "" }]}>
       {rows.map((t) => (
         <tr key={t.trip_id}>
           <td><Link to={`/manager/trips/${t.trip_id}`}>{t.trip_code}</Link></td>
-          <td>{t.employee_name}<div className="muted small">{t.department}</div></td>
+          <td>{t.employee_name}</td>
           <td>{t.destination}</td>
           <td>{formatDateRange(t.start_date, t.end_date)}<div className="muted small">{tripLengthDays(t.start_date, t.end_date)} days</div></td>
-          <td className="cell-wrap">{t.purpose}</td>
-          <td>{ageLabel(t.created_at)}</td>
+          <td>{startsLabel(t.start_date)}</td>
           <td><Link className="btn btn--primary btn--small" to={`/manager/trips/${t.trip_id}`}>Review</Link></td>
         </tr>
       ))}
@@ -70,15 +77,15 @@ function PendingTickets({ rows }) {
 
 function TripsToComplete({ rows }) {
   return (
-    <Table head={[{ label: "Trip" }, { label: "Employee" }, { label: "Destination" }, { label: "Ended" }, { label: "Pending tickets", num: true }, { label: "Auto-completes" }, { label: "" }]}>
+    <Table head={[{ label: "Trip" }, { label: "Employee" }, { label: "Destination" }, { label: "Ended" }, { label: "Tickets", num: true }, { label: "Auto-completes" }, { label: "" }]}>
       {rows.map((t) => (
         <tr key={t.trip_id}>
           <td><Link to={`/manager/trips/${t.trip_id}`}>{t.trip_code}</Link></td>
           <td>{t.employee_name}</td>
           <td>{t.destination}</td>
           <td>{formatDate(t.end_date)}</td>
-          <td className="num">{t.pending_ticket_count}</td>
-          <td>{formatDate(t.auto_close_on)}</td>
+          <td className="num">{t.ticket_count}</td>
+          <td>{formatDate(t.auto_complete_on)}</td>
           <td><Link className="btn btn--primary btn--small" to={`/manager/trips/${t.trip_id}`}>Open</Link></td>
         </tr>
       ))}
