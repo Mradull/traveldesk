@@ -755,6 +755,7 @@ class PendingExpenseOut(OutModel):
     """GET /api/v1/expenses/pending: flagged LINES inside pending tickets."""
     expense_id: int
     expense_code: str
+    ticket_id: int                         # lets Spending Summary link to /manager/tickets/{ticket_id}
     ticket_code: str
     trip_code: str
     employee_name: str
@@ -786,6 +787,24 @@ class SpendByTripCategoryRow(OutModel):
     expense_type: ExpenseCategory | None   # None = trip total row (GROUPING SETS)
     line_count: int
     total_amount: MoneyOut
+
+
+# --- Joyal/M1: employee dashboard (team addition to Spec v2.0, requested by M3 for DashboardPage) ---
+class CategorySpendRow(OutModel):
+    """Employee dashboard: money claimed in one category (lines of REJECTED tickets excluded)."""
+    expense_type: ExpenseCategory
+    total_amount: MoneyOut
+
+
+class EmployeeDashboardOut(OutModel):
+    """GET /api/v1/dashboard/employee: the signed-in employee's own numbers (Employee only).
+    Same counting rules as My Trips: total_claimed ignores REJECTED tickets."""
+    total_trips: int
+    open_trips: int                            # APPROVED + ACTIVE (tickets can be raised)
+    pending_trip_approval: int                 # IN_PROGRESS (waiting for the manager)
+    total_claimed: MoneyOut
+    recent_trips: list[TripListItemOut]        # newest request first, at most 5
+    spend_by_category: list[CategorySpendRow]  # biggest amount first
 
 
 class PolicyRulesOut(OutModel):
