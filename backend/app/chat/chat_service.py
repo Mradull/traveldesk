@@ -153,8 +153,11 @@ def _answer(decision: IntentDecision, text: str, session: dict, turn: int, ctx: 
 
     # 5. context from THIS session only
     summary = memory.maybe_summarize(session, turn, ctx)
-    bundle = context_builder.build(memory.recent_turns(ctx.session_id, turn), summary, text,
-                                   decision.allowed_tools, schemas.today())
+    turns = memory.recent_turns(ctx.session_id, turn)
+    # the employee's previous question in THIS chat: a short follow-up ("What about ground transport?")
+    # carries its topic there, so policy search uses both texts together when needed
+    previous_question = turns[-1].human if turns else None
+    bundle = context_builder.build(turns, summary, text, decision.allowed_tools, schemas.today())
     messages = context_builder.to_messages(bundle)
     allowed = [t.value for t in decision.allowed_tools]
 
@@ -163,11 +166,18 @@ def _answer(decision: IntentDecision, text: str, session: dict, turn: int, ctx: 
     calls = [c for c in first.tool_calls if c["name"] in allowed][: get_settings().chat_max_tool_calls_per_turn]
     if POLICY in allowed and not any(c["name"] == POLICY for c in calls):
         # policy is never answered from memory: retrieve with the employee's own words
-        calls.append({"name": POLICY, "args": {"query": text[:300]}, "id": f"auto-{uuid.uuid4().hex[:12]}"})
+        # (for an inherited follow-up, together with the previous question of this chat)
+        query = text if not decision.reason.startswith("inherited") else _with_previous(previous_question, text)
+        calls.append({"name": POLICY, "args": {"query": query}, "id": f"auto-{uuid.uuid4().hex[:12]}"})
     if not calls:
         return _direct_reply(out, first, messages, decision, ctx)
 
     executed = [(c, _run_and_store(c, rec, out)) for c in calls]
+    if previous_question and _policy_found_nothing(executed):
+        # follow-up whose own words matched no rule: search once more with the previous question added
+        retry = {"name": POLICY, "args": {"query": _with_previous(previous_question, text)},
+                 "id": f"auto-{uuid.uuid4().hex[:12]}"}
+        executed.append((retry, _run_and_store(retry, rec, out)))
 
     # 7a. policy part
     parts: list[str] = []
@@ -180,6 +190,17 @@ def _answer(decision: IntentDecision, text: str, session: dict, turn: int, ctx: 
         parts.append(_weather_part(weather_runs[-1][1], text, ctx, out))
     out.reply = _output_checks("\n\n".join(p for p in parts if p), out)
     return out
+
+
+def _with_previous(previous_question: str | None, text: str) -> str:
+    """Search text for a follow-up: previous question of this chat + the new message (max 300 chars)."""
+    return (f"{previous_question} {text}" if previous_question else text)[-300:]
+
+
+def _policy_found_nothing(executed: list) -> bool:
+    """True when the policy tool ran, worked, and no chunk reached the similarity floor (NO_MATCH)."""
+    runs = [r for c, r in executed if c["name"] == POLICY]
+    return bool(runs) and all(r.ok for r in runs) and not any(r.data for r in runs)
 
 
 def _run_and_store(call: dict, rec: TurnRecorder, out: Outcome) -> ToolResult:
