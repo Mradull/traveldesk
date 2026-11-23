@@ -36,10 +36,14 @@ from evals.metrics import LATENCY_P95_TARGET_MS, SUITES, contains_all, has_weath
 
 HERE = Path(__file__).resolve().parent
 LATENCIES: list[float] = []          # every live turn, for the latency suite
-# Free AI models allow ~20 requests/minute: pause between live turns, and on AI_RATE_LIMITED
-# wait and retry the whole case (a new chat) a few times before counting it as failed.
+# Free AI models allow ~15-20 requests/minute and sometimes stall or return "overloaded":
+# pause between live turns, and when the PROVIDER fails (rate limited or unavailable) wait and
+# retry the whole case (a new chat) a few times. Evals measure Vera's answers, not the provider's
+# uptime - but every retry is counted and written to the report, so nothing is hidden.
 LIVE_PAUSE_SECONDS = 3
 RATE_LIMIT_WAITS = (20, 40, 60)
+PROVIDER_ERRORS = {"AI_RATE_LIMITED", "AI_UNAVAILABLE"}   # never AI_AUTH_ERROR: a wrong key is not transient
+PROVIDER_RETRIES: list[dict] = []                        # [{"suite", "id", "error"}] for the report
 
 
 def load(suite: str) -> list[dict]:
@@ -226,14 +230,15 @@ RUNNERS = {"routing": s_routing, "retrieval": s_retrieval, "policy_qa": s_policy
 
 
 def _run_case(name: str, case: dict, live: bool):
-    """Run one case; if the AI provider says 'rate limited', wait and retry the whole case."""
+    """Run one case; if the AI provider is rate limited or unavailable, wait and retry the whole case."""
     for wait in (*RATE_LIMIT_WAITS, None):
         try:
             return RUNNERS[name](case, live)
         except llm_client.LLMError as exc:
-            if exc.code.value != "AI_RATE_LIMITED" or wait is None:
+            if exc.code.value not in PROVIDER_ERRORS or wait is None:
                 raise
-            print(f"  {name} {case.get('id')}: AI rate limited, waiting {wait}s and retrying")
+            PROVIDER_RETRIES.append({"suite": name, "id": case.get("id"), "error": exc.code.value})
+            print(f"  {name} {case.get('id')}: {exc.code.value}, waiting {wait}s and retrying")
             time.sleep(wait)
 
 
@@ -265,6 +270,7 @@ def run(suites: list[str]) -> dict:
         value = p95(LATENCIES)
         report["suites"]["latency"] = {"cases": len(LATENCIES), "p95_ms": round(value), "target_ms": LATENCY_P95_TARGET_MS,
                                        "pass": value < LATENCY_P95_TARGET_MS}
+    report["provider_retries"] = {"count": len(PROVIDER_RETRIES), "cases": PROVIDER_RETRIES}
     ran = [s for s in report["suites"].values() if "skipped" not in s]
     report["overall_pass"] = bool(ran) and all(s["pass"] for s in ran)
     return report
@@ -282,6 +288,8 @@ def main() -> None:
         line = s.get("skipped") or (f"{s.get('score', s.get('p95_ms'))} (target {s.get('target', s.get('target_ms'))})"
                                     f" {'PASS' if s['pass'] else 'FAIL'}")
         print(f"{name:24} {line}")
+    if PROVIDER_RETRIES:
+        print(f"provider retries (AI provider errors, retried and recorded): {len(PROVIDER_RETRIES)}")
     print(f"overall: {'PASS' if report['overall_pass'] else 'FAIL'}  ->  {out}")
 
 
