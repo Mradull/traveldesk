@@ -1,10 +1,16 @@
 import { useState } from "react";
 import { Navigate, useLocation } from "react-router-dom";
-import { Eye, EyeOff, Plane } from "lucide-react";
+import { CheckCircle2, Eye, EyeOff, Plane } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import ErrorBanner from "../components/ErrorBanner";
 import { MOCK_PASSWORD, MOCK_USERS } from "../api/mocks";
 import { homePathFor, USE_MOCKS } from "../utils/constants";
+
+const FEATURES = [
+  "Request trips and track approvals",
+  "Claim expenses with a receipt photo on every line",
+  "Ask Vera about the policy and the weather",
+];
 
 export default function LoginPage() {
   const { user, login, sessionMessage } = useAuth();
@@ -40,50 +46,70 @@ export default function LoginPage() {
 
   return (
     <div className="login">
-      <form className="card login__card" onSubmit={handleSubmit} noValidate>
-        <div className="login__logo"><Plane size={28} aria-hidden="true" /></div>
-        <h1>TravelDesk</h1>
-        <p className="muted">AI-powered travel &amp; expense management</p>
-
-        {sessionMessage && <div className="alert alert--info"><p>{sessionMessage}</p></div>}
-        <ErrorBanner error={error} />
-
-        <label className="field">
-          <span>Email</span>
-          <input type="email" autoComplete="username" value={email} onChange={(e) => setEmail(e.target.value)} disabled={submitting} />
-        </label>
-
-        <label className="field">
-          <span>Password</span>
-          <div className="password-field">
-            <input
-              type={showPassword ? "text" : "password"} autoComplete="current-password" value={password}
-              onChange={(e) => setPassword(e.target.value)} disabled={submitting}
-            />
-            <button type="button" onClick={() => setShowPassword((s) => !s)} aria-label={showPassword ? "Hide password" : "Show password"}>
-              {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-            </button>
-          </div>
-        </label>
-
-        <button type="submit" className="btn btn--primary btn--block" disabled={submitting}>
-          {submitting ? "Signing in…" : "Sign in"}
-        </button>
-
-        {USE_MOCKS && (
-          <div className="login__demo">
-            <p><strong>Mock mode</strong>, password <code>{MOCK_PASSWORD}</code></p>
-            {MOCK_USERS.map((u) => (
-              <button
-                key={u.email} type="button" className="btn btn--ghost btn--small"
-                onClick={() => { setEmail(u.email); setPassword(MOCK_PASSWORD); }}
-              >
-                {u.full_name} ({u.role === "MANAGER" ? "Manager" : "Employee"})
-              </button>
+      <section className="login__brand" aria-label="About TravelDesk">
+        <div className="login__logo-row">
+          <span className="sidebar__logo" aria-hidden="true"><Plane size={18} /></span>
+          TravelDesk
+        </div>
+        <div>
+          <h2>Business travel and expenses, <span>without the paperwork.</span></h2>
+          <ul className="login__features">
+            {FEATURES.map((f) => (
+              <li key={f}><CheckCircle2 size={18} aria-hidden="true" />{f}</li>
             ))}
-          </div>
-        )}
-      </form>
+          </ul>
+        </div>
+        <p className="login__foot">Veridian Global Services · EY AI &amp; Data Capstone</p>
+      </section>
+
+      <main className="login__panel">
+        <form className="login__card" onSubmit={handleSubmit} noValidate>
+          <h1>TravelDesk</h1>
+          <p className="muted">Sign in with your company email.</p>
+
+          {sessionMessage && <div className="alert alert--info"><p>{sessionMessage}</p></div>}
+          <ErrorBanner error={error} />
+
+          <label className="field">
+            <span>Email</span>
+            <input
+              type="email" autoComplete="username" value={email} placeholder="name@veridian.example"
+              onChange={(e) => setEmail(e.target.value)} disabled={submitting}
+            />
+          </label>
+
+          <label className="field">
+            <span>Password</span>
+            <div className="password-field">
+              <input
+                type={showPassword ? "text" : "password"} autoComplete="current-password" value={password}
+                onChange={(e) => setPassword(e.target.value)} disabled={submitting}
+              />
+              <button type="button" onClick={() => setShowPassword((s) => !s)} aria-label={showPassword ? "Hide password" : "Show password"}>
+                {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+              </button>
+            </div>
+          </label>
+
+          <button type="submit" className="btn btn--primary btn--block" disabled={submitting}>
+            {submitting ? "Signing in…" : "Sign in"}
+          </button>
+
+          {USE_MOCKS && (
+            <div className="login__demo">
+              <p><strong>Mock mode</strong>, password <code>{MOCK_PASSWORD}</code></p>
+              {MOCK_USERS.map((u) => (
+                <button
+                  key={u.email} type="button" className="btn btn--ghost btn--small"
+                  onClick={() => { setEmail(u.email); setPassword(MOCK_PASSWORD); }}
+                >
+                  {u.full_name} ({u.role === "MANAGER" ? "Manager" : "Employee"})
+                </button>
+              ))}
+            </div>
+          )}
+        </form>
+      </main>
     </div>
   );
 }

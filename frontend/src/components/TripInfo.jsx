@@ -16,7 +16,7 @@ export default function TripInfo({ trip, showEmployee = false }) {
         <dd>{trip.purpose}</dd>
         <dt>Requested on</dt>
         <dd>{formatDate(trip.created_on ?? trip.created_at)}</dd>
-        {active && (<><dt>Auto-completes on</dt><dd>{formatDate(trip.auto_close_on)}</dd></>)}
+        {active && (<><dt>Auto-completes on</dt><dd>{formatDate(trip.auto_complete_on)}</dd></>)}
         {trip.trip_state === "COMPLETED" && (
           <>
             <dt>Completed</dt>

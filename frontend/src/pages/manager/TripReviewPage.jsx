@@ -51,7 +51,8 @@ export default function TripReviewPage() {
     run(() => completeTrip(trip.trip_id), "Trip marked as completed.");
   }
 
-  const canDecide = trip.approval_status === "IN_PROGRESS";
+  // The backend says whether a decision is still allowed (e.g. not after the 90-day window)
+  const canDecide = trip.can_decide ?? trip.approval_status === "IN_PROGRESS";
   const activeNotEnded = trip.trip_state === "ACTIVE" && !trip.can_complete;
 
   return (
@@ -104,7 +105,7 @@ export default function TripReviewPage() {
             <div className="card">
               <h2>Complete the trip</h2>
               <p className="muted">
-                You can complete it from {formatDate(trip.end_date)}. It completes automatically on {formatDate(trip.auto_close_on)}.
+                You can complete it from {formatDate(trip.end_date)}. It completes automatically on {formatDate(trip.auto_complete_on)}.
               </p>
             </div>
           )}
