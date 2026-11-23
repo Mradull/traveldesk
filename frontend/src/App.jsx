@@ -25,11 +25,13 @@ import SpendingSummaryPage from "./pages/manager/SpendingSummaryPage";
 function AppLayout() {
   const { user, isManager } = useAuth();
   const initials = (user?.full_name ?? "?").split(" ").map((p) => p[0]).join("").slice(0, 2);
+  const today = new Date().toLocaleDateString("en-IN", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
   return (
     <div className="shell">
       <NavBar />
       <div className="shell__main">
         <header className="topbar">
+          <span className="topbar__date">{today}</span>
           <div className="user-chip">
             <span className="user-chip__avatar" aria-hidden="true">{initials}</span>
             <div>

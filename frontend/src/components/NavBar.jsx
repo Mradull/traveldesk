@@ -13,6 +13,7 @@ const MANAGER_LINKS = [
   { to: "/manager/reports", label: "Spending Summary", icon: BarChart3 },
 ];
 
+/** Executive sidebar: charcoal, yellow active bar, logout at the bottom */
 export default function NavBar() {
   const { isManager, logout } = useAuth();
   const links = isManager ? MANAGER_LINKS : EMPLOYEE_LINKS;
@@ -21,9 +22,14 @@ export default function NavBar() {
   return (
     <aside className="sidebar">
       <div className="sidebar__brand">
-        <Plane size={20} aria-hidden="true" />
-        <span>TravelDesk</span>
+        <span className="sidebar__logo" aria-hidden="true"><Plane size={18} /></span>
+        <span className="sidebar__name">
+          TravelDesk
+          <small>{isManager ? "Manager view" : "Employee view"}</small>
+        </span>
       </div>
+
+      <p className="sidebar__label">Menu</p>
       <nav className="sidebar__nav" aria-label="Main">
         {links.map(({ to, label, icon: Icon, end }) => (
           <NavLink key={to} to={to} end={end} className={linkClass}>
@@ -32,10 +38,13 @@ export default function NavBar() {
           </NavLink>
         ))}
       </nav>
-      <button type="button" className="sidebar__link sidebar__logout" onClick={logout}>
-        <LogOut size={18} aria-hidden="true" />
-        <span>Logout</span>
-      </button>
+
+      <div className="sidebar__footer">
+        <button type="button" className="sidebar__link sidebar__logout" onClick={logout}>
+          <LogOut size={18} aria-hidden="true" />
+          <span>Logout</span>
+        </button>
+      </div>
     </aside>
   );
 }
