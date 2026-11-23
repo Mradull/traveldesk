@@ -22,7 +22,7 @@ from app.routers.evidence import router as evidence_router
 from app.routers.expenses import router as expenses_router
 from app.routers.health import router as health_router
 from app.routers.policy import router as policy_router
-from app.routers.reports import router as reports_router
+from app.routers.reports import dashboard_router, router as reports_router
 from app.routers.tickets import router as tickets_router
 from app.routers.trips import router as trips_router
 
@@ -68,6 +68,7 @@ app.include_router(tickets_router, prefix=settings.api_prefix)
 app.include_router(expenses_router, prefix=settings.api_prefix)
 app.include_router(policy_router, prefix=settings.api_prefix)
 app.include_router(reports_router, prefix=settings.api_prefix)
+app.include_router(dashboard_router, prefix=settings.api_prefix)  # GET /dashboard/employee (M3 request)
 
 # --- Piyush/M2: register the chat router here; do not change M1 middleware or handlers ---
 app.include_router(chat_router, prefix=settings.api_prefix)      # Vera: /chat/... (Employee only)
