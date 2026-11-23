@@ -29,9 +29,10 @@ POLICY_WORDS = re.compile(
     r"reject\w*|trip requests?|travel requests?|traveldesk|threshold\w*|meals?|hotel|lodging|airfare|taxi|cab|"
     r"incidental\w*|invoices?|evidence|photo|allowed|deadline|per diem|vera|manager|complet\w*|"
     r"submit\w*|replacement|rupees|inr)\b|\bhow (do|can|should) (i|we)\b", re.I)
-GREETING_ONLY = re.compile(
-    r"^(hi|hello|hey|hiya|good (morning|afternoon|evening)|thanks?( you)?( so much| a lot)?|thank you|thx|"
-    r"ok(ay)?|bye|goodbye|see you|cheers|great|cool)( vera)?[\s!.,]*$", re.I)
+_GREETING_WORD = (r"(hi|hello|hey|hiya|good (morning|afternoon|evening)|thanks?( you)?( so much| a lot)?|thank you|"
+                  r"thx|ok(ay)?|bye|goodbye|see you|cheers|great|cool)( vera)?")
+# one or more greeting words and nothing else: "Hi Vera!", "Thanks, bye!", "ok thanks"
+GREETING_ONLY = re.compile(rf"^\s*{_GREETING_WORD}([\s!.,]+{_GREETING_WORD})*[\s!.,]*$", re.I)
 # "show my trips", "status of my ticket", "was my claim approved?", any TRP-/TKT-/EXP-/EVD- code
 BUSINESS_DATA = re.compile(
     r"\b(TRP|TKT|EXP|EVD)-?\d+\b|"

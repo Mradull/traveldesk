@@ -109,6 +109,11 @@ def test_grounded_card_is_used_with_code_built_forecast_basis(employee, fake_llm
     assert reply.reply.endswith("check again a day before you travel.")
     # limitations are built by code from the facts, not written by the model
     assert reply.weather.limitations[0].startswith("Forecast from Open-Meteo, retrieved")
+    # the card's daily table is the tool result copied exactly (never written by the model)
+    day = reply.weather.days[0]
+    assert (day.date.isoformat(), day.condition, day.temp_min_c, day.temp_max_c,
+            day.precipitation_probability_max_pct, day.precipitation_sum_mm, day.wind_speed_max_kmh) == \
+        ("2026-11-23", "Rain", 19.4, 27.8, 70, 4.2, 14.0)
     basis = reply.weather.forecast_basis
     assert basis.source == "Open-Meteo" and basis.resolved_location == "Bengaluru, Karnataka, India"
 
@@ -120,6 +125,7 @@ def test_out_of_range_reply_has_no_values(employee, fake_llm, weather_api):
     reply = chat_service.handle_message(employee, sid, "Weather in Bengaluru 30 Dec to 3 Jan?", "r", "c")
     assert reply.reply.startswith("Forecast not available") and not ov.NUMBER_WITH_UNIT.search(reply.reply)
     assert reply.weather.forecast_basis.coverage == "NONE" and reply.status == ConversationStatus.COMPLETED
+    assert reply.weather.days == []                                     # out of range: no daily values
 
 
 def test_weather_provider_failure_gives_safe_retryable_reply(employee, fake_llm, weather_api):
@@ -205,3 +211,15 @@ def test_reply_answers_weather_and_packing_in_one_message(employee, fake_llm, we
     assert reply.guardrail_status == GuardrailStatus.PASSED
     assert "What to pack:" in reply.reply and "Light cotton clothes" in reply.reply
     assert "23 Nov" not in reply.reply.split("What to pack:")[0]        # no day-by-day dump
+
+
+def test_fallback_tips_state_their_reason_from_the_data():
+    """Template tips name the condition and its value, e.g. strong wind -> 'Strong wind up to 52.3 km/h ...'."""
+    windy = forecast(weather_code=3, precipitation_probability_max_pct=0, precipitation_sum_mm=0.0,
+                     temp_min_c=9.0, temp_max_c=33.0, wind_speed_max_kmh=52.3)
+    tips = formatter.template_weather_output(windy).travel_checklist
+    assert "Strong wind up to 52.3 km/h - secure loose items and check transport updates" in tips
+    assert "Warm layers - lows down to 9.0 °C" in tips
+    assert "Light clothing, water and sun protection - highs up to 33.0 °C" in tips
+    assert not any("umbrella" in t.lower() for t in tips)                       # dry: no rain advice
+    assert ov.check_weather_grounding(" ".join(tips), ov.weather_facts([windy])) == []
