@@ -9,6 +9,9 @@ per-line policy re-check). Spec references: Business rules > Expense tickets, de
 replacements; Transactions; US-11, US-12, US-13, US-16, US-18.
 """
 
+from dataclasses import dataclass, field
+from decimal import Decimal
+
 from sqlalchemy.engine import Connection
 from sqlalchemy.exc import IntegrityError
 
@@ -23,18 +26,36 @@ from app.schemas import (
     PendingTicketOut,
     PolicyCheckOut,
     PolicyFlag,
+    PolicyRuleCode,
+    ReceiptCheckItem,
+    ReceiptVerdict,
+    RejectionReason,
     ReviewerType,
     Role,
     TicketApprovalOut,
     TicketCreate,
     TicketDecisionValue,
     TicketDetailOut,
+    TicketRouting,
     TicketStatus,
     TicketSummaryOut,
     TripState,
     today,
 )
-from app.services import policy_engine, trip_service
+from app.services import policy_engine, receipt_rules, receipt_service, trip_service
+
+RECEIPT_REF = "[POL-7.1]"     # receipt photo rule in the expense policy
+
+
+@dataclass
+class _Line:
+    """One request line with everything decided about it before insert."""
+    index: int
+    request: object                                   # schemas.ExpenseLineCreate
+    flags: list[PolicyFlag] = field(default_factory=list)
+    receipt_verdict: ReceiptVerdict | None = None
+    receipt_checks: list[ReceiptCheckItem] = field(default_factory=list)
+    ai_reject: bool = False
 
 _TICKET_NOT_FOUND = "Ticket not found."
 _EXPENSE_NOT_FOUND = "Expense not found."
@@ -91,6 +112,17 @@ def create_ticket(db: Connection, employee: CurrentUser, trip_id: int, request: 
     everything back (nothing is committed until the end).
     """
     settings = get_settings()
+
+    # 0. [M3] Receipt readings. Usually already stored by POST /evidence/{id}/verify while the
+    #    employee filled the form; read now (before any lock) for any photo that was not.
+    readings: dict = {}
+    if receipt_service.enabled():
+        for line in request.expenses:
+            try:
+                readings[line.evidence_id] = receipt_service.analyze(db, employee, line.evidence_id)
+            except AppError:
+                # Not the caller's photo (or unknown): step 5 reports it with the proper field error.
+                continue
 
     # 1. Same check as the hourly job, run right now so nothing slips in between runs [POL-4.3].
     #    Committed on its own: the completion stands even if this ticket is then refused.
@@ -164,62 +196,89 @@ def create_ticket(db: Connection, employee: CurrentUser, trip_id: int, request: 
     #    claimed", so the same photo uploaded twice in one ticket is flagged on the second line.
     config = policy_engine.PolicyConfig.from_settings(settings)
     hashes, invoices = expense_repo.existing_receipts(db, employee.employee_id)
-    line_flags: list[list[PolicyFlag]] = []
-    for line in request.expenses:
+    lines: list[_Line] = []
+    for i, line in enumerate(request.expenses):
         sha256 = photos[line.evidence_id]["sha256"]
-        line_flags.append(
-            policy_engine.evaluate_line(
-                policy_engine.PolicyLine(line.expense_type, line.amount, sha256, line.invoice_number),
-                config,
-                hashes,
-                invoices,
-            )
+        flags = policy_engine.evaluate_line(
+            policy_engine.PolicyLine(line.expense_type, line.amount, sha256, line.invoice_number),
+            config,
+            hashes,
+            invoices,
         )
+        lines.append(_Line(index=i, request=line, flags=flags))
         hashes.add(sha256)
         if line.invoice_number:
             invoices.add(line.invoice_number.upper())
-    flag_count = sum(len(flags) for flags in line_flags)
-    status, routing = policy_engine.route(flag_count)
 
-    # 7. Insert ticket, lines (attaching the photos) and flags; SYSTEM approval when clean [POL-9.2].
-    try:
-        ticket_id = ticket_repo.insert(
-            db,
-            trip_id=trip_id,
-            employee_id=employee.employee_id,
-            replacement_of_ticket_id=replaced_id,
-            status=status.value,
-            routing=routing.value,
-            line_count=len(request.expenses),
-            flag_count=flag_count,
-            total_amount=sum(line.amount for line in request.expenses),
-        )
-        for line, flags in zip(request.expenses, line_flags):
-            expense_id = expense_repo.insert(
-                db,
-                ticket_id=ticket_id,
-                trip_id=trip_id,
-                evidence_id=line.evidence_id,
-                expense_type=line.expense_type.value,
-                amount=line.amount,
-                expense_date=line.expense_date,
-                description=line.description,
-                invoice_number=line.invoice_number,
-                status=status.value,
+    # 6b. [M3] Receipt check (Spec v2.1). Unreadable photo -> 422, the employee re-uploads.
+    #     Invalid receipt: at/below the threshold -> RECEIPT_MISMATCH flag (manager decides);
+    #     above the threshold -> the line is rejected by SYSTEM in its own ticket (step 7b).
+    #     AI unavailable -> RECEIPT_NOT_VERIFIED flag (manager decides).
+    if receipt_service.enabled():
+        unreadable = []
+        for item in lines:
+            line = item.request
+            result = receipt_service.verify_line(
+                readings.get(line.evidence_id), line.expense_type, line.amount, line.expense_date, trip
             )
-            for flag in flags:
-                ticket_repo.insert_flag(
-                    db,
-                    expense_id,
-                    flag.rule_code.value,
-                    flag.message,
-                    flag.policy_ref,
-                    flag.threshold_amount,
-                    config.rules_version,
+            item.receipt_verdict, item.receipt_checks = result.verdict, result.checks
+            over = line.amount > config.thresholds[line.expense_type]
+            if result.verdict == ReceiptVerdict.UNREADABLE:
+                unreadable.append(item.index)
+            elif result.verdict == ReceiptVerdict.INVALID and over:
+                item.ai_reject = True
+            elif result.verdict == ReceiptVerdict.INVALID:
+                item.flags.append(PolicyFlag(
+                    rule_code=PolicyRuleCode.RECEIPT_MISMATCH,
+                    message=receipt_rules.failure_summary(result.checks).replace("Automated receipt check failed: ", "Receipt check: "),
+                    policy_ref=RECEIPT_REF,
+                ))
+            elif result.verdict == ReceiptVerdict.NOT_VERIFIED:
+                item.flags.append(PolicyFlag(
+                    rule_code=PolicyRuleCode.RECEIPT_NOT_VERIFIED,
+                    message="The receipt could not be checked automatically",
+                    policy_ref=RECEIPT_REF,
+                ))
+        if unreadable:
+            raise AppError(
+                ErrorCode.RECEIPT_UNREADABLE,
+                422,
+                "A receipt photo could not be read. Upload a clearer photo of the whole receipt.",
+                details=[{"field": f"expenses.{i}.evidence_id", "msg": "Receipt could not be read. Upload a clearer photo"}
+                         for i in unreadable],
+            )
+
+    kept = [item for item in lines if not item.ai_reject]
+    rejected = [item for item in lines if item.ai_reject]
+
+    # 7. Insert ticket(s), lines (attaching the photos) and flags; SYSTEM approval when clean [POL-9.2].
+    try:
+        ticket_id = None
+        if kept:
+            flag_count = sum(len(item.flags) for item in kept)
+            status, routing = policy_engine.route(flag_count)
+            ticket_id = _insert_ticket(db, employee, trip_id, replaced_id, kept, status, routing, config)
+            if status == TicketStatus.AUTO_APPROVED:
+                approval_repo.insert_ticket_approval(
+                    db, ticket_id, ReviewerType.SYSTEM.value, None, TicketDecisionValue.AUTO_APPROVED.value, None, None
                 )
-        if status == TicketStatus.AUTO_APPROVED:
+
+        # 7b. [M3] Lines whose receipt failed above the threshold: their own ticket, rejected by
+        #     SYSTEM with reason AI_RECEIPT_INVALID. The employee corrects it with "Create new ticket".
+        ai_ticket_id = None
+        if rejected:
+            ai_ticket_id = _insert_ticket(
+                db, employee, trip_id, None if kept else replaced_id, rejected,
+                TicketStatus.REJECTED, TicketRouting.AI_CHECK, config,
+            )
+            comment = "; ".join(
+                f"Line {item.index + 1} ({item.request.expense_type.value}): "
+                + receipt_rules.failure_summary(item.receipt_checks).removeprefix("Automated receipt check failed: ").rstrip(".")
+                for item in rejected
+            )
             approval_repo.insert_ticket_approval(
-                db, ticket_id, ReviewerType.SYSTEM.value, None, TicketDecisionValue.AUTO_APPROVED.value, None, None
+                db, ai_ticket_id, ReviewerType.SYSTEM.value, None, TicketDecisionValue.REJECTED.value,
+                RejectionReason.AI_RECEIPT_INVALID.value, f"Automated receipt check failed. {comment}."[:1000],
             )
     except IntegrityError as exc:
         # Backstops for a parallel request using the same photo / replacing the same ticket.
@@ -230,9 +289,65 @@ def create_ticket(db: Connection, employee: CurrentUser, trip_id: int, request: 
             raise AppError(ErrorCode.REPLACEMENT_NOT_ALLOWED, 409, "This ticket was already replaced.") from exc
         raise
 
-    result = build_detail(db, employee, ticket_id)
+    if ticket_id is None:                      # every line was rejected by the receipt check
+        result = build_detail(db, employee, ai_ticket_id)
+    else:
+        result = build_detail(db, employee, ticket_id)
+        if ai_ticket_id is not None:
+            result.ai_rejected_ticket = TicketSummaryOut(**ticket_repo.get(db, ai_ticket_id))
     db.commit()
     return result
+
+
+def _insert_ticket(
+    db: Connection,
+    employee: CurrentUser,
+    trip_id: int,
+    replaced_id: int | None,
+    lines: list[_Line],
+    status: TicketStatus,
+    routing: TicketRouting,
+    config: policy_engine.PolicyConfig,
+) -> int:
+    """Insert one ticket with its lines and flags (statuses mirror the ticket)."""
+    ticket_id = ticket_repo.insert(
+        db,
+        trip_id=trip_id,
+        employee_id=employee.employee_id,
+        replacement_of_ticket_id=replaced_id,
+        status=status.value,
+        routing=routing.value,
+        line_count=len(lines),
+        flag_count=sum(len(item.flags) for item in lines),
+        total_amount=sum((item.request.amount for item in lines), Decimal(0)),
+    )
+    for item in lines:
+        line = item.request
+        expense_id = expense_repo.insert(
+            db,
+            ticket_id=ticket_id,
+            trip_id=trip_id,
+            evidence_id=line.evidence_id,
+            expense_type=line.expense_type.value,
+            amount=line.amount,
+            expense_date=line.expense_date,
+            description=line.description,
+            invoice_number=line.invoice_number,
+            status=status.value,
+            receipt_verdict=item.receipt_verdict.value if item.receipt_verdict else None,
+            receipt_checks=[c.model_dump(mode="json") for c in item.receipt_checks],
+        )
+        for flag in item.flags:
+            ticket_repo.insert_flag(
+                db,
+                expense_id,
+                flag.rule_code.value,
+                flag.message,
+                flag.policy_ref,
+                flag.threshold_amount,
+                config.rules_version,
+            )
+    return ticket_id
 
 
 # ----------------------------------------------------------------------------- US-13 read side

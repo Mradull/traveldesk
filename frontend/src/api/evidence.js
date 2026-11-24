@@ -1,6 +1,6 @@
 import { api } from "./client";
 import { API_BASE_URL, STORAGE_KEYS, USE_MOCKS } from "../utils/constants";
-import { mockEvidenceUrl, mockUploadEvidence } from "./mocks";
+import { mockEvidenceUrl, mockUploadEvidence, mockVerifyReceipt } from "./mocks";
 
 /** POST /evidence (multipart, field "file") -> { evidence_id, evidence_code, ... } */
 export function uploadEvidence(file) {
@@ -22,4 +22,14 @@ export async function getEvidenceObjectUrl(evidenceId) {
   });
   if (!res.ok) throw new Error("Couldn't load the receipt photo.");
   return URL.createObjectURL(await res.blob());
+}
+
+/**
+ * POST /evidence/{id}/verify  body: { trip_id, expense_type, amount, expense_date } (any may be null)
+ * -> { verdict, checks, reading, over_threshold, outcome, enabled }
+ * The first call reads the receipt with AI (a few seconds); later calls only re-compare.
+ */
+export function verifyReceipt(evidenceId, body) {
+  if (USE_MOCKS) return mockVerifyReceipt(evidenceId, body);
+  return api.post(`/evidence/${evidenceId}/verify`, body);
 }

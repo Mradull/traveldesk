@@ -432,3 +432,18 @@ def rows(sql: str, **params) -> list[dict]:
     """Assert on table contents (runs inside vera_db, so it reads traveldesk_test)."""
     with transaction() as conn:
         return [dict(r) for r in conn.execute(text(sql), params).mappings()]
+
+
+# [M3] Receipt verification calls external AI services (OpenRouter, Sightengine).
+# Keep it OFF in every test so results never depend on keys, network or AI answers.
+@pytest.fixture(autouse=True)
+def _receipt_check_off(monkeypatch):
+    from app.core.config import get_settings
+    monkeypatch.setattr(get_settings(), "receipt_check_enabled", False)
+
+# [M3] Receipt verification calls external AI services (OpenRouter, Sightengine).
+# Keep it OFF in every test so results never depend on keys, network or AI answers.
+# Patches the function TicketService calls, so it holds even if settings are reloaded.
+@pytest.fixture(autouse=True)
+def _receipt_check_off(monkeypatch):
+    monkeypatch.setattr("app.services.receipt_service.enabled", lambda: False)

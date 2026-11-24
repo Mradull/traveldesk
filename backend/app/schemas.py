@@ -143,6 +143,8 @@ class RejectionReason(str, Enum):
     UNCLEAR_PURPOSE = "UNCLEAR_PURPOSE"
     POLICY_CONCERN = "POLICY_CONCERN"                   # e.g. non-reimbursable item
     OTHER = "OTHER"
+    # [M3] Only the SYSTEM uses this one (receipt check above the threshold); managers cannot pick it.
+    AI_RECEIPT_INVALID = "AI_RECEIPT_INVALID"
 
 
 class TicketStatus(str, Enum):
@@ -157,6 +159,7 @@ class TicketStatus(str, Enum):
 class TicketRouting(str, Enum):
     AUTO = "AUTO"         # zero flags on every line
     MANAGER = "MANAGER"   # at least one flag on any line
+    AI_CHECK = "AI_CHECK" # [M3] lines whose receipt failed the check above the threshold, rejected by SYSTEM
 
 
 class ExpenseCategory(str, Enum):
@@ -174,6 +177,9 @@ class PolicyRuleCode(str, Enum):
     missing receipt photo or an expense date before the trip was created.)"""
     OVER_THRESHOLD = "OVER_THRESHOLD"
     DUPLICATE_RECEIPT = "DUPLICATE_RECEIPT"
+    # [M3] Receipt verification (migration 007)
+    RECEIPT_MISMATCH = "RECEIPT_MISMATCH"           # receipt does not match the line (amount <= threshold)
+    RECEIPT_NOT_VERIFIED = "RECEIPT_NOT_VERIFIED"   # the receipt could not be checked (AI service down)
 
 
 class WeatherStatus(str, Enum):
@@ -246,6 +252,7 @@ class AIProvider(str, Enum):
 class AIFeature(str, Enum):
     CHAT = "CHAT"               # Vera answer generation (incl. tool-calling rounds)
     SUMMARY = "SUMMARY"         # rolling summary of older turns in the SAME session
+    RECEIPT = "RECEIPT"         # [M3] reading a receipt photo (vision model)
 
 
 class AICallStatus(str, Enum):
@@ -312,6 +319,7 @@ class ErrorCode(str, Enum):
     EVIDENCE_TOO_LARGE = "EVIDENCE_TOO_LARGE"              # 413 bigger than EVIDENCE_MAX_BYTES
     REPLACEMENT_NOT_ALLOWED = "REPLACEMENT_NOT_ALLOWED"    # 409 replacement_of_ticket_id invalid / reused
     TICKET_READ_ONLY = "TICKET_READ_ONLY"                  # 409 any change to a decided ticket
+    RECEIPT_UNREADABLE = "RECEIPT_UNREADABLE"              # 422 [M3] a receipt photo could not be read
     # --- chat (Vera) ---
     SESSION_EXPIRED = "SESSION_EXPIRED"                    # 410 idle > 60 min
     SESSION_CLOSED = "SESSION_CLOSED"                      # 410 closed with X / replaced
@@ -668,6 +676,97 @@ class PolicyCheckOut(OutModel):
     rules_version: str                     # e.g. "VGS-FIN-TE-001 v2.0"
 
 
+# -----------------------------------------------------------------------------
+# 7b. [M3] RECEIPT VERIFICATION  (owner: Mradul)
+# The photo is read once (vision model + Sightengine); comparing the reading with the line is
+# plain code (services/receipt_rules.py). Spec v2.1 > Receipt verification.
+# -----------------------------------------------------------------------------
+class ReceiptReadStatus(str, Enum):
+    READ = "READ"                 # the model read the receipt
+    UNREADABLE = "UNREADABLE"     # blurred, cut off, or not a receipt -> employee re-uploads
+    ERROR = "ERROR"               # the AI service failed -> NOT_VERIFIED
+
+
+class ReceiptVerdict(str, Enum):
+    VALID = "VALID"
+    INVALID = "INVALID"             # at least one check failed
+    UNREADABLE = "UNREADABLE"       # blocks submission
+    NOT_VERIFIED = "NOT_VERIFIED"   # AI unavailable -> manager reviews
+    INCOMPLETE = "INCOMPLETE"       # (form only) amount or date not entered yet
+
+
+class ReceiptCheckName(str, Enum):
+    AMOUNT = "AMOUNT"
+    DATE = "DATE"
+    PLACE = "PLACE"
+    AUTHENTICITY = "AUTHENTICITY"   # Sightengine: AI-generated or edited image
+
+
+class ReceiptCheckResult(str, Enum):
+    PASS = "PASS"
+    FAIL = "FAIL"
+    NOT_ON_RECEIPT = "NOT_ON_RECEIPT"   # e.g. no city printed: not counted as a failure
+    MISSING_INPUT = "MISSING_INPUT"     # the employee has not entered the value yet
+    NOT_CHECKED = "NOT_CHECKED"         # e.g. Sightengine not configured
+
+
+class ReceiptLLMOutput(BaseModel):
+    """What the vision model must return (JSON). Anything not visible on the receipt is null."""
+    is_receipt: bool
+    readable: bool
+    total_amount: Decimal | None = Field(None, ge=0, le=Decimal("100000000"))
+    currency: str | None = Field(None, max_length=10)
+    receipt_date: date | None = None
+    merchant: str | None = Field(None, max_length=200)
+    city: str | None = Field(None, max_length=120)
+    from_place: str | None = Field(None, max_length=120)
+    to_place: str | None = Field(None, max_length=120)
+    summary: str | None = Field(None, max_length=400)
+
+
+class ReceiptReadingOut(OutModel):
+    """One row of receipt_checks: what was read from the photo."""
+    evidence_id: UUID
+    status: ReceiptReadStatus
+    is_receipt: bool | None = None
+    total_amount: MoneyOut | None = None
+    currency: str | None = None
+    receipt_date: date | None = None
+    merchant: str | None = None
+    city: str | None = None
+    from_place: str | None = None
+    to_place: str | None = None
+    summary: str | None = None
+    ai_generated_score: float | None = None
+    error_code: str | None = None
+    analyzed_at: datetime
+
+
+class ReceiptCheckItem(OutModel):
+    check: ReceiptCheckName
+    result: ReceiptCheckResult
+    message: str
+
+
+class ReceiptVerifyRequest(InModel):
+    """POST /evidence/{evidence_id}/verify: the line as typed so far (any field may still be empty)."""
+    trip_id: int
+    expense_type: ExpenseCategory | None = None
+    amount: Decimal | None = Field(None, gt=0, le=MAX_LINE_AMOUNT_INR, max_digits=12, decimal_places=2)
+    expense_date: date | None = None
+
+
+class ReceiptVerificationOut(OutModel):
+    """Result shown under the receipt photo, and what will happen at submission."""
+    evidence_id: UUID
+    verdict: ReceiptVerdict
+    checks: list[ReceiptCheckItem] = []
+    reading: ReceiptReadingOut | None = None
+    over_threshold: bool = False
+    outcome: str                           # plain sentence, e.g. "This line will be rejected ..."
+    enabled: bool = True                   # False when RECEIPT_CHECK_ENABLED=false (UI shows nothing)
+
+
 class ExpenseOut(OutModel):
     expense_id: int
     expense_code: str                      # "EXP-00031"
@@ -684,6 +783,11 @@ class ExpenseOut(OutModel):
     status: TicketStatus                   # mirrors the ticket
     flags: list[PolicyFlag] = []
     created_at: datetime
+    # [M3] receipt verification frozen at submission (None for lines raised before the feature)
+    receipt_verdict: ReceiptVerdict | None = None
+    receipt_checks: list[ReceiptCheckItem] = []
+    receipt_summary: str | None = None
+    receipt_ai_generated_score: float | None = None
 
 
 class TicketDecisionRequest(InModel):
@@ -698,6 +802,8 @@ class TicketDecisionRequest(InModel):
         _check_review_comment(self.decision, self.review_comment)
         if self.decision == Decision.REJECTED and self.rejection_reason is None:
             raise ValueError("rejection_reason is required to reject a ticket")
+        if self.rejection_reason == RejectionReason.AI_RECEIPT_INVALID:
+            raise ValueError("AI_RECEIPT_INVALID is set only by the automated receipt check")
         if self.decision == Decision.APPROVED and self.rejection_reason is not None:
             raise ValueError("rejection_reason is only allowed when rejecting")
         return self
@@ -742,6 +848,9 @@ class TicketDetailOut(TicketSummaryOut):
     expenses: list[ExpenseOut]
     history: list[TicketApprovalOut]
     can_create_replacement: bool           # REJECTED, not yet replaced, trip still ACTIVE, caller is owner
+    # [M3] create response only: lines whose receipt failed above the threshold were moved to
+    # this separate ticket, rejected by SYSTEM (routing AI_CHECK).
+    ai_rejected_ticket: TicketSummaryOut | None = None
 
 
 class PendingTicketOut(TicketSummaryOut):

@@ -117,6 +117,21 @@ class Settings(BaseSettings):
     eval_use_live_llm: bool = False
     # ===================== M2 (Piyush) END =======================
 
+    # ===================== M3 (Mradul) START =====================
+    # Receipt verification (Spec v2.1). OFF unless RECEIPT_CHECK_ENABLED=true, so tests and
+    # machines without the keys behave exactly as before.
+    receipt_check_enabled: bool = False
+    receipt_vision_model: str = ""              # "" = use OPENROUTER_MODEL (Nemotron VL reads images)
+    receipt_amount_tolerance_pct: float = 1.0   # receipt total may differ by 1% ...
+    receipt_amount_tolerance_min_inr: float = 10.0   # ... or Rs 10, whichever is larger
+    receipt_date_tolerance_days: int = 1
+    receipt_ai_generated_threshold: float = 0.5  # Sightengine score at or above this -> FAIL
+    sightengine_api_user: str = ""
+    sightengine_api_secret: SecretStr | None = None
+    sightengine_url: str = "https://api.sightengine.com/1.0/check.json"
+    sightengine_timeout_seconds: float = 10
+    # ===================== M3 (Mradul) END =======================
+
 
 @lru_cache(maxsize=1)
 def get_settings() -> Settings:

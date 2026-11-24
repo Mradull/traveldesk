@@ -390,3 +390,20 @@ a.evidence-thumb:hover { border-color: var(--ey-charcoal); }
 .details a { color: var(--text); font-weight: 600; text-decoration: underline; text-decoration-color: var(--ey-yellow); text-decoration-thickness: 2px; text-underline-offset: 3px; }
 .details a:hover { text-decoration-color: var(--ey-charcoal); }
 .ticket-lines td:nth-child(2), .ticket-lines td:nth-child(4), .ticket-lines td:first-child .small { white-space: nowrap; }
+
+/* ---------- Receipt check (Spec v2.1) ---------- */
+.receipt-check { margin-top: 0.6rem; padding: 0.7rem 0.85rem; border-radius: var(--radius); border-left: 4px solid; font-size: 0.88rem; }
+.receipt-check p { margin: 0; }
+.receipt-check__title { display: flex; align-items: center; gap: 0.4rem; font-weight: 600; }
+.receipt-check__busy { margin-left: auto; }
+.receipt-check__read { margin-top: 0.3rem !important; color: var(--text); font-variant-numeric: tabular-nums; }
+.receipt-check__list { margin: 0.35rem 0 0; padding-left: 1.1rem; }
+.receipt-check__text { margin-top: 0.35rem !important; }
+.receipt-check .btn { margin-top: 0.5rem; }
+.receipt-check--ok { background: var(--green-bg); color: var(--green-text); border-color: var(--green-text); }
+.receipt-check--warn { background: var(--amber-bg); color: var(--amber-text); border-color: var(--amber-text); }
+.receipt-check--bad { background: var(--red-bg); color: var(--red-text); border-color: var(--red-text); }
+.receipt-check--muted { background: var(--grey-bg); color: var(--grey-text); border-color: var(--ey-grey); }
+.receipt-result { margin-top: 0.45rem; }
+.receipt-result__summary { margin: 0.3rem 0 0; font-size: 0.82rem; color: var(--muted); }
+.receipt-result__fails { margin: 0.3rem 0 0; padding-left: 1rem; font-size: 0.82rem; color: var(--red-text); }

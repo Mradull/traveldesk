@@ -3,7 +3,7 @@
 import { Link, useParams } from "react-router-dom";
 import { useApi } from "../../hooks/useApi";
 import { getTicket } from "../../api/tickets";
-import { REJECTION_REASONS } from "../../utils/constants";
+import { REJECTION_REASON_LABELS } from "../../utils/constants";
 import { formatDateTime, formatINR } from "../../utils/format";
 import { idFromCode } from "../../utils/tripRules";
 import Loader from "../../components/Loader";
@@ -13,7 +13,7 @@ import ReadOnlyBanner from "../../components/ReadOnlyBanner";
 import TicketLines from "../../components/TicketLines";
 import ApprovalHistory from "../../components/ApprovalHistory";
 
-const reasonLabel = (value) => REJECTION_REASONS.find((r) => r.value === value)?.label ?? value;
+const reasonLabel = (value) => REJECTION_REASON_LABELS[value] ?? value;
 
 export default function TicketDetailPage() {
   const { ticketId } = useParams();
@@ -24,7 +24,9 @@ export default function TicketDetailPage() {
   if (!ticket) return null;
 
   const decided = ticket.status !== "PENDING";
-  const managerDecision = ticket.history.find((h) => h.reviewer_type === "MANAGER");
+  // Rejected by the manager, or by the automated receipt check (SYSTEM, AI_RECEIPT_INVALID)
+  const rejection = ticket.history.find((h) => h.decision === "REJECTED");
+  const rejectedBy = rejection?.reviewer_type === "SYSTEM" ? "the automated receipt check" : rejection?.reviewer_name;
   const replaceUrl = `/trips/${ticket.trip_id}/expenses/new?replaces=${ticket.ticket_id}`;
   // The contract sends only the codes of linked tickets; the code gives the id
   const replacesId = ticket.replacement_of_ticket_id ?? idFromCode(ticket.replacement_of_ticket_code);
@@ -54,11 +56,11 @@ export default function TicketDetailPage() {
         </div>
       )}
 
-      {ticket.status === "REJECTED" && managerDecision && (
+      {ticket.status === "REJECTED" && rejection && (
         <div className="alert alert--error">
           <div>
-            <p><strong>Rejected by {managerDecision.reviewer_name}: {reasonLabel(managerDecision.rejection_reason)}</strong></p>
-            <p>{managerDecision.review_comment}</p>
+            <p><strong>Rejected by {rejectedBy}: {reasonLabel(rejection.rejection_reason)}</strong></p>
+            <p>{rejection.review_comment}</p>
             {ticket.can_create_replacement && (
               <p className="small">To correct it, create a new ticket and upload clear photos again. This ticket stays unchanged.</p>
             )}
@@ -90,7 +92,8 @@ export default function TicketDetailPage() {
               <dt>Submitted</dt><dd>{formatDateTime(ticket.submitted_at)}</dd>
               <dt>Lines</dt><dd>{ticket.line_count}</dd>
               <dt>Flags</dt><dd>{ticket.flag_count}</dd>
-              <dt>Routing</dt><dd>{ticket.routing === "AUTO" ? "Policy engine (no flags)" : "Manager review"}</dd>
+              <dt>Routing</dt>
+              <dd>{{ AUTO: "Policy engine (no flags)", AI_CHECK: "Automated receipt check" }[ticket.routing] ?? "Manager review"}</dd>
               <dt>Total</dt><dd><strong>{formatINR(ticket.total_amount)}</strong></dd>
             </dl>
           </div>
