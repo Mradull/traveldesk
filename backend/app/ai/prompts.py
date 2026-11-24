@@ -30,6 +30,8 @@ SUMMARY_BLOCK = "\nSummary of earlier messages in THIS chat: {summary}"
 # Final call of a POLICY turn: only the retrieved chunks may be used.
 POLICY_ANSWER_RULES = ("Answer the employee's question using ONLY the policy text in the tool results above. "
                        "Cite every rule you use with its id in square brackets, e.g. [POL-6.2]. "
+                       "Quote numbers, amounts and periods exactly as the policy writes them "
+                       "(e.g. INR 7,500, 365 days, 60 minutes). "
                        "Do not mention weather. Keep it under 120 words.")
 
 POLICY_RETRY_NOTE = ("Your previous answer cited ids that were not retrieved, or cited none. "

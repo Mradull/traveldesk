@@ -60,7 +60,10 @@ def _build_model() -> BaseChatModel:
                           # Nemotron "thinks" by default; off = faster, plain answers.
                           extra_body={"reasoning": {"enabled": get_settings().openrouter_reasoning_enabled}}, **common)
     if provider == AIProvider.GEMINI:
-        return ChatOpenAI(model=model, api_key=_secret(get_settings().gemini_api_key), base_url=get_settings().gemini_base_url, **common)
+        effort = get_settings().gemini_reasoning_effort
+        thinking = {"reasoning_effort": effort} if effort else {}      # less thinking = faster replies
+        return ChatOpenAI(model=model, api_key=_secret(get_settings().gemini_api_key),
+                          base_url=get_settings().gemini_base_url, **thinking, **common)
     return AzureChatOpenAI(azure_endpoint=get_settings().azure_openai_endpoint, api_key=_secret(get_settings().azure_openai_api_key),
                            azure_deployment=get_settings().azure_openai_deployment,
                            api_version=get_settings().azure_openai_api_version, **common)

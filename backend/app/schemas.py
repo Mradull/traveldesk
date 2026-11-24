@@ -893,6 +893,9 @@ class VeraWeatherAnswer(OutModel):
     weather_summary: str
     travel_checklist: list[str]
     limitations: list[str]
+    # Team addition to Spec v2.0 (M2, agreed with M3): the card's daily table. Copied by code from the
+    # tool result (covered dates only); empty when there is no forecast (e.g. out of range).
+    days: list[DailyForecast] = Field(default_factory=list)
     disclaimer: str = ("Weather guidance is informational only. It is not an approval, a booking "
                        "or a safety guarantee.")
 

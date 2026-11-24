@@ -109,6 +109,11 @@ def test_grounded_card_is_used_with_code_built_forecast_basis(employee, fake_llm
     assert reply.reply.endswith("check again a day before you travel.")
     # limitations are built by code from the facts, not written by the model
     assert reply.weather.limitations[0].startswith("Forecast from Open-Meteo, retrieved")
+    # the card's daily table is the tool result copied exactly (never written by the model)
+    day = reply.weather.days[0]
+    assert (day.date.isoformat(), day.condition, day.temp_min_c, day.temp_max_c,
+            day.precipitation_probability_max_pct, day.precipitation_sum_mm, day.wind_speed_max_kmh) == \
+        ("2026-11-23", "Rain", 19.4, 27.8, 70, 4.2, 14.0)
     basis = reply.weather.forecast_basis
     assert basis.source == "Open-Meteo" and basis.resolved_location == "Bengaluru, Karnataka, India"
 
@@ -120,6 +125,7 @@ def test_out_of_range_reply_has_no_values(employee, fake_llm, weather_api):
     reply = chat_service.handle_message(employee, sid, "Weather in Bengaluru 30 Dec to 3 Jan?", "r", "c")
     assert reply.reply.startswith("Forecast not available") and not ov.NUMBER_WITH_UNIT.search(reply.reply)
     assert reply.weather.forecast_basis.coverage == "NONE" and reply.status == ConversationStatus.COMPLETED
+    assert reply.weather.days == []                                     # out of range: no daily values
 
 
 def test_weather_provider_failure_gives_safe_retryable_reply(employee, fake_llm, weather_api):
@@ -205,3 +211,56 @@ def test_reply_answers_weather_and_packing_in_one_message(employee, fake_llm, we
     assert reply.guardrail_status == GuardrailStatus.PASSED
     assert "What to pack:" in reply.reply and "Light cotton clothes" in reply.reply
     assert "23 Nov" not in reply.reply.split("What to pack:")[0]        # no day-by-day dump
+
+
+def test_fallback_tips_state_their_reason_from_the_data():
+    """Template tips name the condition and its value, e.g. strong wind -> 'Strong wind up to 52.3 km/h ...'."""
+    windy = forecast(weather_code=3, precipitation_probability_max_pct=0, precipitation_sum_mm=0.0,
+                     temp_min_c=9.0, temp_max_c=33.0, wind_speed_max_kmh=52.3)
+    tips = formatter.template_weather_output(windy).travel_checklist
+    assert "Strong wind up to 52.3 km/h - secure loose items and check transport updates" in tips
+    assert "Warm layers - lows down to 9.0 °C" in tips
+    assert "Light clothing, water and sun protection - highs up to 33.0 °C" in tips
+    assert not any("umbrella" in t.lower() for t in tips)                       # dry: no rain advice
+    assert ov.check_weather_grounding(" ".join(tips), ov.weather_facts([windy])) == []
+
+
+# ----------------------------------------------------------------------------- follow-up questions (memory evals)
+GROUND = RetrievedChunk(chunk_id=7, ref_id="POL-6.2", section_title="Review thresholds per expense line",
+                        content="AIRFARE 20,000 ... GROUND TRANSPORT 3,000 ... MEALS 1,500", similarity=0.81)
+
+
+def _topic_aware_search(monkeypatch):
+    """Fake retriever: a bare follow-up matches nothing; with the previous question it finds POL-6.2."""
+    searched = []
+
+    def top_chunks(query, top_k=None):
+        searched.append(query)
+        return [GROUND] if "airfare" in query.lower() else [GROUND.model_copy(update={"similarity": 0.12})]
+    monkeypatch.setattr(retriever, "top_chunks", top_chunks)
+    return searched
+
+
+def test_inherited_follow_up_searches_with_the_previous_question(employee, fake_llm, monkeypatch):
+    searched = _topic_aware_search(monkeypatch)
+    fake_llm("", "Airfare lines above INR 20,000 need manager review [POL-6.2].",        # turn 1
+             "", "Ground transport lines above INR 3,000 need manager review [POL-6.2].")  # turn 2
+    sid = session_manager.open_session(employee).session_id
+    chat_service.handle_message(employee, sid, "What is the review threshold for airfare?", "r", "c")
+    reply = chat_service.handle_message(employee, sid, "What about ground transport?", "r", "c")
+    assert searched[-1].startswith("What is the review threshold for airfare? What about ground transport?")
+    assert "3,000" in reply.reply and [c.ref_id for c in reply.citations] == ["POL-6.2"]
+
+
+def test_follow_up_with_no_match_is_retried_with_the_previous_question(employee, fake_llm, monkeypatch):
+    searched = _topic_aware_search(monkeypatch)
+    fake_llm("", "Airfare lines above INR 20,000 need manager review [POL-6.2].",
+             tool_call("search_expense_policy", {"query": "ground transport"}),          # model's own weak query
+             "Ground transport lines above INR 3,000 need manager review [POL-6.2].")
+    sid = session_manager.open_session(employee).session_id
+    chat_service.handle_message(employee, sid, "What is the review threshold for airfare?", "r", "c")
+    reply = chat_service.handle_message(employee, sid, "And for ground transport?", "r", "c")
+    assert searched[-2:] == ["ground transport",
+                             "What is the review threshold for airfare? And for ground transport?"]
+    assert "3,000" in reply.reply and "couldn't find" not in reply.reply
+    assert [t.tool_name.value for t in reply.tools_used] == ["search_expense_policy", "search_expense_policy"]

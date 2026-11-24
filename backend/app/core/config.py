@@ -73,7 +73,7 @@ class Settings(BaseSettings):
     ai_max_retries: int = 1                 # retried only on timeout / 5xx / connection errors
     ai_temperature: float = 0.2
     ai_max_output_tokens: int = 800
-    prompt_version: str = "vera-system-v2.0"
+    prompt_version: str = "vera-system-v2.1"
     openrouter_api_key: SecretStr | None = None
     openrouter_base_url: str = "https://openrouter.ai/api/v1"
     openrouter_model: str = "nvidia/nemotron-3.5-super-vl:free"
@@ -82,6 +82,8 @@ class Settings(BaseSettings):
     gemini_api_key: SecretStr | None = None   # Gemini through its OpenAI-compatible endpoint
     gemini_model: str = ""
     gemini_base_url: str = "https://generativelanguage.googleapis.com/v1beta/openai/"
+    # Gemini 3 models always "think"; low = faster answers (minimal | low | medium | high, "" = model default)
+    gemini_reasoning_effort: str = "low"
     azure_openai_endpoint: str = ""
     azure_openai_api_key: SecretStr | None = None
     azure_openai_deployment: str = ""
