@@ -12,6 +12,9 @@ import TripForm from "../../components/TripForm";
 import TripInfo from "../../components/TripInfo";
 import TicketList from "../../components/TicketList";
 import ApprovalHistory from "../../components/ApprovalHistory";
+import Breadcrumbs from "../../components/ui/Breadcrumbs";
+import { StatusTimeline, tripSteps } from "../../components/ui/StatusTimeline";
+import { useToast } from "../../components/ui/UiProvider";
 
 function ticketEmptyMessage(trip) {
   if (trip.approval_status === "IN_PROGRESS") return "Tickets can be raised once your manager approves the trip.";
@@ -28,7 +31,7 @@ export default function TripDetailPage() {
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState(null);
   const [serverErrors, setServerErrors] = useState({});
-  const [savedMessage, setSavedMessage] = useState(null);
+  const toast = useToast();
 
   if (loading) return <Loader label="Loading trip…" />;
   if (error) return <ErrorBanner error={error} onRetry={reload} />;
@@ -42,7 +45,7 @@ export default function TripDetailPage() {
       const updated = await updateTrip(trip.trip_id, values);
       setData({ ...trip, ...updated });
       setEditing(false);
-      setSavedMessage("Changes saved.");
+      toast("Changes saved");
     } catch (err) {
       const fields = fieldErrorsFromApi(err);
       if (Object.keys(fields).length > 0) setServerErrors(fields);
@@ -64,7 +67,7 @@ export default function TripDetailPage() {
 
   return (
     <section>
-      <Link to="/trips" className="back-link">← My Trips</Link>
+      <Breadcrumbs items={[{ label: "My Trips", to: "/trips" }, { label: trip.trip_code }]} />
 
       <div className="page-header">
         <div>
@@ -74,7 +77,7 @@ export default function TripDetailPage() {
         </div>
         <div className="page-header__actions">
           {trip.can_edit && !editing && (
-            <button type="button" className="btn btn--secondary" onClick={() => { setEditing(true); setSavedMessage(null); }}>
+            <button type="button" className="btn btn--secondary" onClick={() => setEditing(true)}>
               Edit request
             </button>
           )}
@@ -82,7 +85,7 @@ export default function TripDetailPage() {
         </div>
       </div>
 
-      {savedMessage && <div className="alert alert--info"><p>{savedMessage}</p></div>}
+      <StatusTimeline steps={tripSteps(trip)} label="Trip progress" />
       {rejection && (
         <div className="alert alert--error">
           <div>

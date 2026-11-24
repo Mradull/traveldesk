@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import { Trash2 } from "lucide-react";
 import EvidencePicker from "./EvidencePicker";
 import ReceiptCheck from "./ReceiptCheck";
+import ThresholdMeter from "./ui/ThresholdMeter";
 import { receiptStatusKey, useReceiptCheck } from "../hooks/useReceiptCheck";
 import { EXPENSE_CATEGORIES } from "../utils/constants";
 import { formatINR } from "../utils/format";
@@ -55,10 +56,9 @@ export default function ExpenseLineEditor({
             disabled={disabled} aria-invalid={Boolean(err("amount"))}
           />
           {err("amount") && <span className="field__error">{err("amount")}</span>}
-          {!err("amount") && threshold != null && receiptKey !== "INVALID_OVER" && (
-            <span className={over ? "field__warn" : "hint"}>
-              {over ? `Above the ${formatINR(threshold)} review threshold: this ticket will go to your manager.` : `Review above ${formatINR(threshold)}`}
-            </span>
+          {!err("amount") && <ThresholdMeter amount={line.amount} threshold={threshold} />}
+          {!err("amount") && over && receiptKey !== "INVALID_OVER" && (
+            <span className="field__warn">Above the review threshold: this ticket will go to your manager.</span>
           )}
         </label>
 

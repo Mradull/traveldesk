@@ -14,6 +14,8 @@ import ErrorBanner from "../../components/ErrorBanner";
 import StatusBadge from "../../components/StatusBadge";
 import PolicyFlagList from "../../components/PolicyFlagList";
 import ExpenseLineEditor from "../../components/ExpenseLineEditor";
+import Breadcrumbs from "../../components/ui/Breadcrumbs";
+import { useConfirm, useToast } from "../../components/ui/UiProvider";
 
 let nextUid = 0;
 const newLine = () => ({
@@ -93,6 +95,8 @@ export default function RaiseTicketPage() {
   const [submitting, setSubmitting] = useState(false);
   const [result, setResult] = useState(null);
   const [receiptStatus, setReceiptStatus] = useState({}); // line uid -> "checking" | verdict | ...
+  const toast = useToast();
+  const confirm = useConfirm();
 
   const trip = tripReq.data;
   if (tripReq.loading || rulesReq.loading) return <Loader label="Loading…" />;
@@ -159,6 +163,18 @@ export default function RaiseTicketPage() {
     event.preventDefault();
     setAttempted(true);
     if (Object.keys(validateExpenseLines(payload, trip.created_on)).length > 0) return;
+    if (rejectedLines > 0) {
+      const ok = await confirm({
+        title: rejectedLines === 1 ? "1 line will be rejected" : `${rejectedLines} lines will be rejected`,
+        message: (
+          <>The receipt doesn't match {rejectedLines === 1 ? "a line" : "lines"} above the review threshold, so the receipt check
+          will reject {rejectedLines === 1 ? "it" : "them"} in a separate ticket. You can correct {rejectedLines === 1 ? "it" : "them"} afterwards
+          with "Create new ticket", or go back and fix the {rejectedLines === 1 ? "line" : "lines"} now.</>
+        ),
+        confirmLabel: "Submit anyway", cancelLabel: "Go back and fix", tone: "danger",
+      });
+      if (!ok) return;
+    }
 
     setSubmitting(true);
     setSubmitError(null);
@@ -166,7 +182,9 @@ export default function RaiseTicketPage() {
     try {
       const body = { expenses: payload };
       if (replaces) body.replacement_of_ticket_id = Number(replaces);
-      setResult(await createTicket(trip.trip_id, body));
+      const created = await createTicket(trip.trip_id, body);
+      setResult(created);
+      toast(`${created.ticket_code} submitted`, { tone: created.status === "REJECTED" ? "warning" : "success" });
     } catch (err) {
       const fields = fieldErrorsFromApi(err);
       if (Object.keys(fields).length > 0) setServerErrors(fields);
@@ -178,7 +196,11 @@ export default function RaiseTicketPage() {
 
   return (
     <section>
-      <Link to={`/trips/${trip.trip_id}`} className="back-link">← {trip.trip_code}, {trip.destination}</Link>
+      <Breadcrumbs items={[
+        { label: "My Trips", to: "/trips" },
+        { label: trip.trip_code, to: `/trips/${trip.trip_id}` },
+        { label: "Add expenses" },
+      ]} />
       <div className="page-header">
         <div>
           <h1>Add expenses</h1>

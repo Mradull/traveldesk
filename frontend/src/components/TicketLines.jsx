@@ -1,4 +1,6 @@
+import { useState } from "react";
 import EvidenceThumbnail from "./EvidenceThumbnail";
+import ReceiptLightbox from "./ReceiptLightbox";
 import PolicyFlagList from "./PolicyFlagList";
 import { EXPENSE_CATEGORIES, RECEIPT_CHECK_LABELS } from "../utils/constants";
 import { formatDate, formatINR } from "../utils/format";
@@ -31,7 +33,9 @@ function ReceiptResult({ line }) {
 }
 
 export default function TicketLines({ expenses }) {
+  const [open, setOpen] = useState(null);   // index of the line shown in the lightbox
   return (
+    <>
     <div className="table-wrap">
       <table className="table ticket-lines">
         <thead>
@@ -44,7 +48,7 @@ export default function TicketLines({ expenses }) {
           {expenses.map((l) => (
             <tr key={l.expense_id}>
               <td>
-                <EvidenceThumbnail evidenceId={l.evidence_id} evidenceCode={l.evidence_code} />
+                <EvidenceThumbnail evidenceId={l.evidence_id} evidenceCode={l.evidence_code} onOpen={() => setOpen(expenses.indexOf(l))} />
                 <div className="muted small">{l.evidence_code}</div>
               </td>
               <td>
@@ -66,5 +70,7 @@ export default function TicketLines({ expenses }) {
         </tbody>
       </table>
     </div>
+    {open !== null && <ReceiptLightbox lines={expenses} index={open} onIndex={setOpen} onClose={() => setOpen(null)} />}
+    </>
   );
 }

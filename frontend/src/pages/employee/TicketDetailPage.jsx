@@ -12,6 +12,8 @@ import StatusBadge from "../../components/StatusBadge";
 import ReadOnlyBanner from "../../components/ReadOnlyBanner";
 import TicketLines from "../../components/TicketLines";
 import ApprovalHistory from "../../components/ApprovalHistory";
+import Breadcrumbs from "../../components/ui/Breadcrumbs";
+import { StatusTimeline, ticketSteps } from "../../components/ui/StatusTimeline";
 
 const reasonLabel = (value) => REJECTION_REASON_LABELS[value] ?? value;
 
@@ -34,7 +36,11 @@ export default function TicketDetailPage() {
 
   return (
     <section>
-      <Link to={`/trips/${ticket.trip_id}`} className="back-link">← {ticket.trip_code}, {ticket.destination}</Link>
+      <Breadcrumbs items={[
+        { label: "My Trips", to: "/trips" },
+        { label: ticket.trip_code, to: `/trips/${ticket.trip_id}` },
+        { label: ticket.ticket_code },
+      ]} />
 
       <div className="page-header">
         <div>
@@ -44,6 +50,8 @@ export default function TicketDetailPage() {
         </div>
         {ticket.can_create_replacement && <Link className="btn btn--primary" to={replaceUrl}>Create new ticket</Link>}
       </div>
+
+      <StatusTimeline steps={ticketSteps(ticket)} label="Ticket progress" />
 
       {(ticket.replacement_of_ticket_code || ticket.replaced_by_ticket_code) && (
         <div className="replace-links">

@@ -12,6 +12,8 @@ import Loader from "../../components/Loader";
 import ErrorBanner from "../../components/ErrorBanner";
 import StatusBadge from "../../components/StatusBadge";
 import PolicyFlagList from "../../components/PolicyFlagList";
+import CountUp from "../../components/ui/CountUp";
+import DonutChart from "../../components/ui/DonutChart";
 
 const categoryLabel = (value) => EXPENSE_CATEGORIES.find((c) => c.value === value)?.label ?? value;
 
@@ -54,10 +56,20 @@ export default function SpendingSummaryPage() {
     !query || [r.employee_name, r.trip_code, r.destination, r.expense_code].some((v) => v.toLowerCase().includes(query)));
 
   const kpis = [
-    { label: "Approved spend", value: spend.data ? formatINR(approvedTotal) : "–", icon: Wallet },
-    { label: "Expense lines claimed", value: lines.data ? lines.data.length : "–", icon: ListChecks },
-    { label: "Flagged lines pending", value: pending.data ? `${pending.data.length} (${formatINR(pendingTotal)})` : "–", icon: AlertTriangle },
+    { label: "Approved spend", value: spend.data ? <CountUp value={approvedTotal} format={formatINR} /> : "–", icon: Wallet },
+    { label: "Expense lines claimed", value: lines.data ? <CountUp value={lines.data.length} /> : "–", icon: ListChecks },
+    { label: "Flagged lines pending", value: pending.data ? <>{pending.data.length} <small className="kpi__sub">({formatINR(pendingTotal)})</small></> : "–", icon: AlertTriangle },
   ];
+
+  // Charts (#6): approved spend by category (donut) and by trip (bars), from the same SQL report
+  const byCategory = Object.values((spend.data ?? []).filter((r) => r.expense_type != null).reduce((acc, r) => {
+    acc[r.expense_type] = acc[r.expense_type] ?? { label: categoryLabel(r.expense_type), value: 0 };
+    acc[r.expense_type].value += Number(r.total_amount);
+    return acc;
+  }, {})).sort((a, b) => b.value - a.value);
+  const byTrip = tripGroups.filter((g) => g.total).map((g) => ({ label: `${g.trip_code} · ${g.destination}`, value: Number(g.total.total_amount) }))
+    .sort((a, b) => b.value - a.value);
+  const maxTrip = Math.max(1, ...byTrip.map((t) => t.value));
 
   return (
     <section className="stack">
@@ -80,6 +92,27 @@ export default function SpendingSummaryPage() {
           </div>
         ))}
       </div>
+
+      {byCategory.length > 0 && (
+        <div className="dash-grid">
+          <div className="card">
+            <h2>Approved spend by category</h2>
+            <DonutChart label="Approved spend by category" format={formatINR} data={byCategory} />
+          </div>
+          <div className="card">
+            <h2>Approved spend by trip</h2>
+            <ul className="bar-chart">
+              {byTrip.map((t, i) => (
+                <li key={t.label}>
+                  <span className="bar-chart__label bar-chart__label--wide">{t.label}</span>
+                  <span className="bar-chart__track"><span className="bar-chart__bar" style={{ width: `${(t.value / maxTrip) * 100}%`, ...(i === 0 ? { background: "var(--ey-yellow)" } : {}) }} /></span>
+                  <span className="bar-chart__value">{formatINR(t.value)}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
+      )}
 
       <Section title="Spend by trip and category" subtitle="Approved and auto-approved lines only, with a total per trip" request={spend}>
         {() => (tripGroups.length === 0 ? <p className="muted">No approved spend yet.</p> : (
