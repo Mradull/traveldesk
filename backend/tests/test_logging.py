@@ -201,3 +201,17 @@ class TestVeraLogs:
                         status=AICallStatus.SUCCESS, latency_ms=1, correlation_id="corr-fallback")
         log_repo.log_safely(broken, rec)                                    # must not raise
         assert "corr-fallback" in caplog.text and "log_write_failed" in caplog.text
+
+
+@pytest.mark.usefixtures("vera_db")
+class TestProviderErrorDetail:
+    """[P] a failed AI call writes the provider's own reason to the application log (never the key)."""
+
+    def test_failure_reason_is_logged_without_the_key(self, employee, fake_llm, monkeypatch, caplog):
+        monkeypatch.setattr(get_settings(), "openrouter_api_key", SecretStr("sk-or-v1-SECRET123"))
+        fake_llm(_auth_error())
+        sid = session_manager.open_session(employee).session_id
+        with pytest.raises(llm_client.LLMError):
+            chat_service.handle_message(employee, sid, "Weather in Pune?", "r", "c")
+        assert "ai_call_failed" in caplog.text and "AuthenticationError" in caplog.text
+        assert "SECRET123" not in caplog.text
