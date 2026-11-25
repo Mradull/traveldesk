@@ -622,3 +622,10 @@ button.evidence-thumb:hover { border-color: var(--contrast); }
 .split .table-card .table th:first-child, .split .table-card .table td:first-child { padding-left: 1rem; }
 .split .table td:first-child { white-space: nowrap; }
 .split .flag-badges { flex-direction: column; align-items: flex-start; }
+
+
+
+/* Hide the browser's own clear (x) button in search inputs: SearchBox has its own */
+.search-box input::-webkit-search-cancel-button,
+.search-box input::-webkit-search-decoration { -webkit-appearance: none; appearance: none; display: none; }
+.search-box input::-ms-clear { display: none; width: 0; height: 0; }
