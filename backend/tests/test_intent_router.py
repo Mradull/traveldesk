@@ -26,6 +26,9 @@ W, P = ToolName.GET_WEATHER_FORECAST, ToolName.SEARCH_EXPENSE_POLICY
     ("Hi Vera!", ChatIntent.GREETING, []),
     ("thank you", ChatIntent.GREETING, []),
     ("Thanks, bye!", ChatIntent.GREETING, []),                                  # several greeting words
+    ("I am travelling to italy in first week of dec", ChatIntent.WEATHER, [W]),   # travel plan, no weather word
+    ("Visiting Pune next month for a client meeting", ChatIntent.WEATHER, [W]),
+    ("Can I claim a taxi when going to the airport?", ChatIntent.POLICY, [P]),     # policy words win
     ("Thanks for the meal limit info", ChatIntent.POLICY, [P]),                 # greeting + a real question
     ("Show my trips", ChatIntent.OUT_OF_SCOPE, []),
     ("What is the status of TKT-00003?", ChatIntent.OUT_OF_SCOPE, []),

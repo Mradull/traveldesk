@@ -44,6 +44,11 @@ ACTION_REQUEST = re.compile(
     r"\b(can|could|will|would) you\b.{0,15}\b(approve|reject|book|submit|reimburse|edit|cancel|complete|pay)\b|"
     r"^\s*(please\s+)?(approve|reject|book|submit|reimburse|cancel|pay)\b|"
     r"\bis it safe\b|\bguarantee\b", re.I)
+# "I'm travelling to Italy in the first week of Dec", "visiting Pune next month", "my next trip":
+# the employee is talking about a trip, so Vera may offer the weather (and ask for city / exact dates)
+TRAVEL_PLAN = re.compile(
+    r"\b(travell?ing|travel|trip|flying|fly|visiting|visit|heading|going)\s+(to|there)\b|\bvisiting\b|"
+    r"\bmy (next |upcoming )?trip\b", re.I)
 HOW_TO = re.compile(r"\bhow (do|can|should|to)\b|\bwhere (do|can) i\b", re.I)
 FOLLOW_UP_MAX_WORDS = 12
 
@@ -80,6 +85,8 @@ def route(message: str, previous_intent: ChatIntent | None = None,
         return _decision(ChatIntent.WEATHER, f"keywords: {', '.join(weather)}")
     if policy or how_to:
         return _decision(ChatIntent.POLICY, f"keywords: {', '.join(policy) or 'how-to'}")
+    if TRAVEL_PLAN.search(text):
+        return _decision(ChatIntent.WEATHER, "travel plan")
 
     tool_intents = (ChatIntent.POLICY, ChatIntent.WEATHER, ChatIntent.POLICY_AND_WEATHER)
     if previous_intent in tool_intents and len(text.split()) <= FOLLOW_UP_MAX_WORDS:

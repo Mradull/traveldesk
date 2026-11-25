@@ -12,6 +12,7 @@ ai/llm_client.py - the ONLY place that talks to the AI provider (owner: Piyush, 
 Tests replace the model with LangChain's fake chat model via set_chat_model().
 """
 import json
+import logging
 import re
 import time
 from typing import Any, TypeVar
@@ -28,6 +29,7 @@ from app.repositories import log_repo
 from app.schemas import AICallLog, AICallStatus, AIFeature, AIProvider, ErrorCode, ToolContext
 
 M = TypeVar("M", bound=BaseModel)
+log = logging.getLogger("traveldesk.ai")
 
 _model: BaseChatModel | None = None
 
@@ -125,15 +127,21 @@ def _call(messages: list[BaseMessage], tools: list | None, feature: AIFeature,
           model_name: str | None = None) -> tuple[AIMessage, float]:
     """Call the model with the retry policy. Failed attempts are logged here; the caller logs success.
     [M3] chat_model / model_name: optional override (receipt reading with a separate vision model)."""
-    model = chat_model or get_chat_model()
-    runnable = model.bind_tools(tools) if tools else model
     attempts = 1 + get_settings().ai_max_retries
     for attempt in range(1, attempts + 1):
         started = time.monotonic()
         try:
+            model = chat_model or get_chat_model()
+            runnable = model.bind_tools(tools) if tools else model
             return runnable.invoke(messages), started
         except Exception as exc:  # noqa: BLE001 - classified below
             status, code, http, retry = _classify(exc)
+            # the provider's own reason (wrong key, unknown model, overloaded ...), so a 503 is diagnosable;
+            # exception text comes from the provider response and never contains our API key
+            log.warning(json.dumps({"event": "ai_call_failed", "provider": get_settings().ai_provider,
+                                    "model": model_name or provider_and_model()[1], "status": status.value,
+                                    "attempt": attempt, "error_type": type(exc).__name__,
+                                    "detail": str(exc)[:300]}))
             _log(feature, status, started, ctx, error_code=code.value, model_name=model_name)
             if retry and attempt < attempts:
                 continue          # one more try on timeout / 5xx / connection errors only
