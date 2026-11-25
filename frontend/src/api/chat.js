@@ -12,7 +12,9 @@ export function normalizeReply(r) {
     intent: r.intent ?? null,                 // POLICY | WEATHER | POLICY_AND_WEATHER | GREETING | OUT_OF_SCOPE
     citations: r.citations ?? [],             // [{ ref_id, title, similarity }]
     tools: r.tools_used ?? [],                // [{ tool_name, status, error_code, latency_ms }]
-    weather: r.weather ?? null,               // VeraWeatherAnswer or null
+    weather: r.weather ?? null,               // VeraWeatherAnswer or null (the last card)
+    // one card per city in this answer ("Rome, then Catania"); older replies only have `weather`
+    weatherCards: r.weather_cards?.length ? r.weather_cards : r.weather ? [r.weather] : [],
     status: r.status,                         // COMPLETED | PARTIAL | BLOCKED | FAILED
     errorCode: r.error_code ?? null,
     retryable: Boolean(r.retryable),
@@ -30,6 +32,9 @@ export function historyToItems(history) {
       text: m.content,
       citations: m.metadata?.citations ?? [],
       weather: m.metadata?.weather ?? m.metadata?.weather_card ?? null,
+      weatherCards: m.metadata?.weather_cards?.length
+        ? m.metadata.weather_cards
+        : m.metadata?.weather ? [m.metadata.weather] : [],
     }));
 }
 

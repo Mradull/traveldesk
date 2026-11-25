@@ -22,19 +22,22 @@ export default function MessageBubble({ item, onRetry }) {
     );
   }
 
-  const isAnswer = Boolean(item.weather) || item.citations?.length > 0;
+  // every weather card of this answer (one per city); falls back to the single `weather`
+  const cards = item.weatherCards?.length ? item.weatherCards : item.weather ? [item.weather] : [];
+  const isAnswer = cards.length > 0 || item.citations?.length > 0;
+  // "Checked the weather" once, even when Vera checked two cities
+  const toolLabels = [...new Set((item.tools ?? []).map(
+    (t) => `${TOOL_TEXT[t.tool_name] ?? t.tool_name}${t.status === "error" ? " (unavailable)" : ""}`))];
   const failed = item.status === "FAILED" || item.status === "PARTIAL";
   return (
     <div className={failed ? "bubble bubble--ai bubble--warn" : "bubble bubble--ai"}>
       {/* reply already contains the summary and "What to pack" list, so the card shows only the forecast details */}
       {item.text && <p className="bubble__text">{item.text}</p>}
-      {item.weather && <WeatherAnswerCard card={item.weather} showSummary={!item.text} />}
+      {cards.map((card, i) => (
+        <WeatherAnswerCard key={`${card.destination}-${i}`} card={card} showSummary={!item.text} />
+      ))}
       {item.citations?.length > 0 && <CitationChips citations={item.citations} />}
-      {item.tools?.length > 0 && (
-        <p className="bubble__tools">
-          {item.tools.map((t) => `${TOOL_TEXT[t.tool_name] ?? t.tool_name}${t.status === "error" ? " (unavailable)" : ""}`).join(", ")}
-        </p>
-      )}
+      {toolLabels.length > 0 && <p className="bubble__tools">{toolLabels.join(", ")}</p>}
       {item.retryText && onRetry && (
         <button type="button" className="btn btn--secondary btn--small bubble__retry" onClick={() => onRetry(item)}>Retry</button>
       )}

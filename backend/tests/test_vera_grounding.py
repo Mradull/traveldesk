@@ -267,27 +267,197 @@ def test_follow_up_with_no_match_is_retried_with_the_previous_question(employee,
 
 
 
-def test_two_cities_in_one_message_are_both_answered(employee, fake_llm, weather_api):
-    """'Rome 1-3 Dec, then Catania 4-7 Dec': two weather lookups -> both summaries in the reply."""
+def test_claim_question_also_searches_the_procedure(employee, fake_llm, monkeypatch):
+    """'What should I do to get reimbursed for a meal?' -> searches the steps (raise a ticket, receipt photo) too."""
+    searched = []
+
+    def top_chunks(query, top_k=None):
+        searched.append(query)
+        return [RetrievedChunk(chunk_id=1, ref_id="GUIDE-6", section_title="Raising an expense ticket",
+                               content="Open Expense Management, choose the trip, add a line, attach the receipt photo, submit.",
+                               similarity=0.8),
+                RetrievedChunk(chunk_id=2, ref_id="POL-6.2", section_title="Review thresholds per expense line",
+                               content="MEALS 1,500", similarity=0.7)]
+    monkeypatch.setattr(retriever, "top_chunks", top_chunks)
+    fake_llm("", "1. Keep the receipt and take a photo. 2. In Expense Management raise a ticket on the trip [GUIDE-6]. "
+                 "Meals above INR 1,500 go to your manager [POL-6.2].")
+    sid = session_manager.open_session(employee).session_id
+    reply = chat_service.handle_message(employee, sid, "If I eat in Rome, what should I do to get reimbursed?", "r", "c")
+    assert chat_service.PROCEDURE_QUERY in searched
+    assert {c.ref_id for c in reply.citations} == {"GUIDE-6", "POL-6.2"}
+
+
+# ----------------------------------------------------------------------------- several destinations in one message
+def _geocode_any(weather_api, places):
     import httpx
-    places = {"Rome": ("Rome", "Lazio", "Italy", 41.89, 12.48), "Catania": ("Catania", "Sicily", "Italy", 37.50, 15.09)}
 
     def geocode(request):
-        name, admin1, country, lat, lon = places[request.url.params["name"]]
+        name, admin1, country = places[request.url.params["name"]]
         return httpx.Response(200, json={"results": [{"name": name, "admin1": admin1, "country": country,
-                                                      "latitude": lat, "longitude": lon, "population": 1000000}]})
+                                                      "latitude": 20.0, "longitude": 77.0, "population": 5000000}]})
     weather_api["geo"].mock(side_effect=geocode)
-    from langchain_core.messages import AIMessage
-    both = AIMessage(content="", tool_calls=[
-        {"name": "get_weather_forecast", "args": {"destination": "Rome", "start_date": "2026-11-23",
-                                                  "end_date": "2026-11-25"}, "id": "call-rome"},
-        {"name": "get_weather_forecast", "args": {"destination": "Catania", "start_date": "2026-11-26",
-                                                  "end_date": "2026-11-29"}, "id": "call-catania"}])
-    fake_llm(both, card("Rome: rain likely (70%), 19.4 °C to 27.8 °C."),
-             card("Catania: rain likely (70%), 19.4 °C to 27.8 °C."))
+
+
+def test_single_destination_makes_no_extra_round(employee, fake_llm, weather_api):
+    model = fake_llm(tool_call("get_weather_forecast", {"destination": "Bengaluru", "start_date": "2026-11-23",
+                                                        "end_date": "2026-11-26"}),
+                     card("Rain likely (70%), 19.4 °C to 27.8 °C."))
     sid = session_manager.open_session(employee).session_id
-    reply = chat_service.handle_message(employee, sid, "Weather in Rome from 23rd to 25th then Catania 26th to 29th?", "r", "c")
-    assert "Rome: rain likely" in reply.reply and "Catania: rain likely" in reply.reply
-    assert reply.reply.count("What to pack:") == 2
-    assert [t.tool_name.value for t in reply.tools_used] == ["get_weather_forecast", "get_weather_forecast"]
-    assert reply.weather.forecast_basis.resolved_location == "Catania, Sicily, Italy"   # card = last lookup
+    chat_service.handle_message(employee, sid, "Weather in Bengaluru from 23rd to 26th?", "r", "c")
+    assert len(model.calls) == 2                                         # tool round + card, nothing extra
+
+
+def test_fallback_reads_naturally_with_condition_tips():
+    """Fallback text: compact dates, fog day named, tips from the conditions (no filler when not needed)."""
+    from datetime import date
+    f = forecast(date=TODAY + timedelta(days=18), weather_code=45, condition="Fog", temp_min_c=21.8, temp_max_c=28.4,
+                 precipitation_probability_max_pct=0, precipitation_sum_mm=0.0, wind_speed_max_kmh=13.0)
+    out = formatter.template_weather_output(f)
+    assert out.weather_summary.startswith("Bengaluru, Karnataka, India (8 Dec 2026): fog.")
+    assert "Light, breathable clothing - highs up to 28.4 °C" in out.travel_checklist
+    assert "Allow extra travel time on 8 Dec - fog expected" in out.travel_checklist
+    assert formatter._date_list([date(2026, 12, 8), date(2026, 12, 9)]) == "8–9 Dec 2026"
+    assert formatter._date_list([date(2026, 11, 30), date(2026, 12, 1)]) == "30 Nov 2026 to 1 Dec 2026"
+
+
+def test_slow_ai_text_never_holds_the_reply_back(employee, fake_llm, weather_api, monkeypatch):
+    """Weather texts are written in parallel within a time budget; a city whose AI text is late gets
+    the grounded fallback text, so the reply still arrives quickly."""
+    import time as _time
+    monkeypatch.setattr(chat_service, "WEATHER_CARDS_BUDGET_SECONDS", 0.3)
+    def slow_card(forecast, question, ctx, out):
+        _time.sleep(3)                                                   # a stalled free-tier call
+        return formatter.template_weather_output(forecast)               # (no AI or logging: nothing left behind)
+    monkeypatch.setattr(chat_service, "_weather_card", slow_card)
+    fake_llm(WEATHER_CALL)
+    sid = session_manager.open_session(employee).session_id
+    started = _time.monotonic()
+    reply = chat_service.handle_message(employee, sid, "Weather in Bengaluru on 23 Nov?", "r", "c")
+    assert _time.monotonic() - started < 2                              # not 3 s: the budget cut it off
+    assert reply.reply.startswith("Bengaluru, Karnataka, India (23 Nov 2026)")   # grounded fallback text
+    assert reply.weather is not None and reply.weather.days
+    assert reply.guardrail_status == GuardrailStatus.OUTPUT_REWRITTEN
+
+
+# ----------------------------------------------------------------------------- rain gear + per-city texts
+@pytest.mark.parametrize("pct, mm, code, advice_allowed", [
+    (0, 0.0, 2, False),     # "umbrella - rain chance 0% but carry anyway": rejected
+    (2, 0.0, 0, False),     # 2% is not a reason for rain gear
+    (14, 0.6, 53, True),    # drizzle with rain in mm: rain gear makes sense
+    (23, 0.0, 2, True),     # 20% or more: rain gear makes sense
+])
+def test_rain_gear_advice_needs_a_real_rain_risk(pct, mm, code, advice_allowed):
+    facts = ov.weather_facts([forecast(precipitation_probability_max_pct=pct, precipitation_sum_mm=mm, weather_code=code)])
+    problems = ov.check_weather_grounding(f"Umbrella or raincoat - rain chance up to {pct}%", facts)
+    assert (problems == []) is advice_allowed
+    assert ov.check_weather_grounding(f"Mostly dry, with a {pct}% chance of rain.", facts) == []   # honest mention ok
+
+
+def test_fallback_suggests_no_umbrella_for_a_small_rain_chance():
+    f = forecast(weather_code=0, precipitation_probability_max_pct=2, precipitation_sum_mm=0.0)
+    assert not any("umbrella" in t.lower() for t in formatter.template_weather_output(f).travel_checklist)
+
+
+def test_comma_date_lists_count_as_trip_legs():
+    msg = "I will be in delhi on 1,2,3 dec, then in mumbai on 4,5 dec, then in blr on 6, 7 dec and chennai on 8 and 9 dec"
+    assert chat_service._expected_destinations(msg) == 4
+
+
+
+# ----------------------------------------------------------------------------- several places: ONE trip answer
+def _trip_json(cities, checklist=("Light, breathable clothes for Delhi and Mumbai", "Umbrella or raincoat for Delhi and Mumbai",
+                                  "Comfortable shoes for meetings")):
+    return json.dumps({"overview": "Wet in both places, mild temperatures.",
+                       "cities": [{"place": c, "summary": f"Rain likely (70%), 19.4 °C to 27.8 °C in {c}."} for c in cities],
+                       "travel_checklist": list(checklist)})
+
+
+def _two_city_turn(employee, fake_llm, weather_api, *trip_replies):
+    from langchain_core.messages import AIMessage
+    _geocode_any(weather_api, {"Delhi": ("Delhi", "Delhi", "India"), "Mumbai": ("Mumbai", "Maharashtra", "India")})
+    both = AIMessage(content="", tool_calls=[
+        {"name": "get_weather_forecast", "args": {"destination": "Delhi", "start_date": "2026-11-22",
+                                                  "end_date": "2026-11-24"}, "id": "c-d"},
+        {"name": "get_weather_forecast", "args": {"destination": "Mumbai", "start_date": "2026-11-25",
+                                                  "end_date": "2026-11-26"}, "id": "c-m"}])
+    model = fake_llm(both, *trip_replies)
+    sid = session_manager.open_session(employee).session_id
+    reply = chat_service.handle_message(employee, sid, "Delhi 22nd to 24th, Mumbai 25th to 26th - what to pack?", "r", "c")
+    return model, reply
+
+
+def test_several_places_give_one_well_formatted_answer(employee, fake_llm, weather_api):
+    """Overview, one short section per place, ONE packing list, ONE closing note; one card per place."""
+    model, reply = _two_city_turn(employee, fake_llm, weather_api, _trip_json(["Delhi", "Mumbai"]))
+    text = reply.reply
+    assert text.startswith("Here's the weather for your 2-stop trip (22–26 Nov). Wet in both places")
+    assert "\n\nDelhi · 22–24 Nov\nRain likely" in text and "\n\nMumbai · 25–26 Nov\nRain likely" in text
+    assert text.count("What to pack for the whole trip:") == 1 and text.count("Forecasts can change") == 1
+    assert "What to pack:" not in text                                     # no per-city lists glued together
+    assert [c.destination for c in reply.weather_cards] == ["Delhi", "Mumbai"] and all(c.days for c in reply.weather_cards)
+    assert len(model.calls) == 2                                           # tool round + ONE writing call
+    assert reply.guardrail_status == GuardrailStatus.PASSED
+
+
+def test_trip_text_with_a_wrong_number_falls_back_to_the_same_layout(employee, fake_llm, weather_api):
+    wrong = json.dumps({"overview": "Hot everywhere.", "cities": [{"place": "Delhi", "summary": "Up to 41 °C."},
+                        {"place": "Mumbai", "summary": "Up to 41 °C."}], "travel_checklist": ["a", "b", "c"]})
+    _, reply = _two_city_turn(employee, fake_llm, weather_api, wrong, wrong)
+    assert "41" not in reply.reply                                         # never shown
+    assert reply.reply.startswith("Here's the weather for your 2-stop trip (22–26 Nov).")
+    assert "Delhi · 22–24 Nov\nRain, 19.4–27.8 °C, rain chance up to 70%." in reply.reply
+    assert reply.reply.count("What to pack for the whole trip:") == 1
+    assert reply.guardrail_status == GuardrailStatus.OUTPUT_REWRITTEN
+
+
+def test_trip_text_missing_a_place_falls_back(employee, fake_llm, weather_api):
+    one = _trip_json(["Delhi"])
+    _, reply = _two_city_turn(employee, fake_llm, weather_api, one, one)
+    assert "Mumbai · 25–26 Nov" in reply.reply and "Delhi · 22–24 Nov" in reply.reply
+
+
+def test_slow_trip_text_uses_the_layout_from_the_data(employee, fake_llm, weather_api, monkeypatch):
+    import time as _time
+    monkeypatch.setattr(chat_service, "WEATHER_CARDS_BUDGET_SECONDS", 0.3)
+    monkeypatch.setattr(chat_service, "_trip_text", lambda *a: _time.sleep(3))
+    started = _time.monotonic()
+    _, reply = _two_city_turn(employee, fake_llm, weather_api)
+    assert _time.monotonic() - started < 2
+    assert "Delhi · 22–24 Nov" in reply.reply and "Mumbai · 25–26 Nov" in reply.reply
+
+
+def test_missing_destinations_are_looked_up_in_a_second_round(employee, fake_llm, weather_api):
+    """Three places with dates; the model looks up only Delhi -> Vera asks it once more -> one 3-stop answer."""
+    from langchain_core.messages import AIMessage
+    _geocode_any(weather_api, {"Delhi": ("Delhi", "Delhi", "India"), "Mumbai": ("Mumbai", "Maharashtra", "India"),
+                               "Chennai": ("Chennai", "Tamil Nadu", "India")})
+    delhi = tool_call("get_weather_forecast", {"destination": "Delhi", "start_date": "2026-11-22",
+                                               "end_date": "2026-11-24"}, call_id="c-delhi")
+    rest = AIMessage(content="", tool_calls=[
+        {"name": "get_weather_forecast", "args": {"destination": "Mumbai", "start_date": "2026-11-25",
+                                                  "end_date": "2026-11-27"}, "id": "c-mumbai"},
+        {"name": "get_weather_forecast", "args": {"destination": "Chennai", "start_date": "2026-11-28",
+                                                  "end_date": "2026-11-29"}, "id": "c-chennai"}])
+    model = fake_llm(delhi, rest, _trip_json(["Delhi", "Mumbai", "Chennai"]))
+    sid = session_manager.open_session(employee).session_id
+    msg = "Delhi from 22nd to 24th\nMumbai 25th to 27th\nChennai 28th and 29th - what should I pack?"
+    reply = chat_service.handle_message(employee, sid, msg, "r", "c")
+    assert [c.destination for c in reply.weather_cards] == ["Delhi", "Mumbai", "Chennai"]
+    assert reply.reply.startswith("Here's the weather for your 3-stop trip")
+    assert model.calls[1][1] == ["get_weather_forecast"]                  # the second round offers the weather tool
+
+
+def test_fallback_trip_packing_list_names_places_and_follows_the_data():
+    from datetime import datetime, timezone
+    def fc(place, code, lo, hi, pct, mm):
+        d = DailyForecast(date=TODAY + timedelta(days=11), weather_code=code, condition="Clear sky", temp_min_c=lo,
+                          temp_max_c=hi, precipitation_probability_max_pct=pct, precipitation_sum_mm=mm, wind_speed_max_kmh=8)
+        return WeatherForecastResult(status=WeatherStatus.AVAILABLE, destination=place, resolved_location=f"{place}, India",
+                                     requested_from=d.date, requested_to=d.date, covered_dates=[d.date], days=[d],
+                                     retrieved_at=datetime(2026, 11, 25, tzinfo=timezone.utc))
+    trip = [fc("Delhi", 2, 11.4, 22.6, 0, 0.0), fc("Mumbai", 0, 21.2, 34.3, 2, 0.0), fc("Chennai", 2, 21.8, 28.4, 23, 0.0)]
+    tips = formatter.trip_checklist(trip)
+    assert "Warm layers for Delhi - lows down to 11.4 °C" in tips
+    assert "Light clothing, water and sun protection for Mumbai - highs up to 34.3 °C" in tips
+    assert "Umbrella or raincoat for Chennai" in tips                       # 23%: yes; Mumbai 2%: no
+    assert ov.check_weather_grounding(" ".join(tips), ov.weather_facts(trip)) == []

@@ -45,6 +45,10 @@ TODO (S5): from the spec's "Changes from the assessment brief" and "Risks, assum
 - **Vera's AI provider:** Vera runs on Google Gemini's free tier (`gemini-3.1-flash-lite`) instead of OpenRouter, because OpenRouter's free models are limited to 50 requests per day per account. Switch back with `AI_PROVIDER=openrouter` in `backend/.env`.
 - **Vera latency on the free tier:** the p95 target (< 8 s) is not met reliably. In our runs up to 40% of Gemini calls stalled or returned "overloaded" and were retried automatically. Healthy calls average about 2.3 s, and every eval answer was correct after retries. Settings used: `AI_TIMEOUT_SECONDS=8`, `AI_MAX_RETRIES=2` (spec default: 30 s, 1 retry).
 - **Weather card daily table:** `VeraWeatherAnswer` has an extra `days` field (not in Spec v2.0) so the card can show the daily forecast table.
+- **Several cities in one question:** `ChatReplyOut` has an extra `weather_cards` list (one card per city, e.g. Rome then Catania); `weather` stays the last card for older clients.
+- **Reply length:** Vera's replies may be up to 2,000 characters (spec: 1,200) so two-city forecasts and step-by-step policy answers are not cut off.
+- **Rain gear advice:** Vera suggests an umbrella or raincoat only when the rain chance is 20% or more, rain is expected (mm > 0) or it is a rainy day (spec: any chance above 0%, which gave advice like "umbrella - rain chance 2%").
+- **Several cities in one question:** Vera gives one answer for the whole trip (an overview, a short section per place, one packing list), written by one AI call within a 20-second budget and checked place by place against the forecast; if the AI is late or wrong, the same layout is built from the data.
 
 ## Demo
 

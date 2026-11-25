@@ -16,6 +16,9 @@ from app.schemas import RetrievedChunk, WeatherForecastResult
 
 TOLERANCE = 0.5
 COLD_MAX_C, HOT_MIN_C, STRONG_WIND_KMH = 15, 32, 40   # same cut-offs as the advice table in the spec
+# umbrella / raincoat advice only for a real rain risk (team change: the spec said any chance > 0, which
+# produced "umbrella - rain chance 2%"); mentioning a small chance of rain is still allowed
+RAIN_GEAR_MIN_PCT = 20
 
 RAIN_CODES = set(range(51, 68)) | set(range(80, 83)) | set(range(95, 100))
 SNOW_CODES, FOG_CODES, STORM_CODES = set(range(71, 78)), {45, 48}, set(range(95, 100))
@@ -27,7 +30,8 @@ NUMBER_WITH_UNIT = re.compile(
 
 # word groups that claim a weather condition -> the fact that must be true in the data
 CONDITION_WORDS = {
-    "rain": re.compile(r"\b(rain\w*|showers?|drizzl\w*|umbrellas?|raincoats?)\b", re.I),
+    "rain": re.compile(r"\b(rain\w*|showers?|drizzl\w*)\b", re.I),
+    "rain_gear": re.compile(r"\b(umbrellas?|raincoats?|rain ?jackets?|waterproofs?)\b", re.I),
     "storm": re.compile(r"\b(thunder\w*|storms?|stormy|lightning)\b", re.I),
     "snow": re.compile(r"\b(snow\w*|sleet|blizzards?)\b", re.I),
     "fog": re.compile(r"\b(fog\w*|mist\w*)\b", re.I),
@@ -37,6 +41,8 @@ CONDITION_WORDS = {
 }
 # a negation just before the word ("no rain expected", "0% chance of rain") is not a claim
 NEGATION = re.compile(r"\b(no|not|without|unlikely|none|zero)\b|\b0\s*%|\b0(?:\.0)?\s*mm", re.I)
+
+GEAR_NEGATION = re.compile(r"\b(no|not|without|none|don't|do not|won't need)\b", re.I)
 
 CITATION = re.compile(r"\[((?:POL|GUIDE|FAQ)-\d+(?:\.\d+)?)\]")
 INR_AMOUNT = re.compile(r"(?:INR|Rs\.?|₹)\s*([\d,]+(?:\.\d+)?)|([\d,]+(?:\.\d+)?)\s*(?:INR|rupees)", re.I)
@@ -68,6 +74,9 @@ def weather_facts(results: list[WeatherForecastResult]) -> WeatherFacts:
             code = d.weather_code
             if (d.precipitation_probability_max_pct or 0) > 0 or (d.precipitation_sum_mm or 0) > 0 or code in RAIN_CODES:
                 f.flags.add("rain")
+            if ((d.precipitation_probability_max_pct or 0) >= RAIN_GEAR_MIN_PCT or (d.precipitation_sum_mm or 0) > 0
+                    or code in RAIN_CODES):
+                f.flags.add("rain_gear")
             for name, codes in (("storm", STORM_CODES), ("snow", SNOW_CODES), ("fog", FOG_CODES)):
                 if code in codes:
                     f.flags.add(name)
@@ -103,7 +112,12 @@ def check_weather_grounding(text: str, facts: WeatherFacts) -> list[str]:
             sentence_start = max(text.rfind(".", 0, m.start()), text.rfind("\n", 0, m.start())) + 1
             before = text[max(sentence_start, m.start() - 40):m.start()]
             sentence = text[sentence_start:text.find(".", m.end()) if "." in text[m.end():] else len(text)]
-            if NEGATION.search(before) or (name == "rain" and NEGATION.search(sentence)):
+            # "no rain", "0% chance of rain" are honest; but rain GEAR advice is only excused by a negation
+            # right before it ("no umbrella needed"), never by a "0%" elsewhere in the sentence
+            if name == "rain_gear":
+                if GEAR_NEGATION.search(before):       # "no umbrella needed", "don't need a raincoat"
+                    continue
+            elif NEGATION.search(before) or (name == "rain" and NEGATION.search(sentence)):
                 continue                                 # "no rain", "0% chance of rain"
             if name not in facts.flags:
                 problems.append(f"'{m.group(0)}' not supported by forecast")

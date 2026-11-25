@@ -73,7 +73,7 @@ class Settings(BaseSettings):
     ai_max_retries: int = 1                 # retried only on timeout / 5xx / connection errors
     ai_temperature: float = 0.2
     ai_max_output_tokens: int = 800
-    prompt_version: str = "vera-system-v2.2"
+    prompt_version: str = "vera-system-v2.5"
     openrouter_api_key: SecretStr | None = None
     openrouter_base_url: str = "https://openrouter.ai/api/v1"
     openrouter_model: str = "nvidia/nemotron-3.5-super-vl:free"
