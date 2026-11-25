@@ -21,11 +21,14 @@ a safe reply, marks the turn FAILED and raises LLMError (-> 503/429 envelope). B
 are never touched here.
 """
 import json
+import re
+from concurrent.futures import ThreadPoolExecutor, wait
 import time
 import uuid
 from dataclasses import dataclass, field
 from uuid import UUID
 
+from pydantic import BaseModel, Field
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage, ToolMessage
 
 from app import schemas
@@ -42,6 +45,33 @@ from app.schemas import (ChatIntent, ChatReplyOut, Citation, ConversationStatus,
                          WeatherForecastResult, WeatherStatus)
 
 POLICY, WEATHER = ToolName.SEARCH_EXPENSE_POLICY.value, ToolName.GET_WEATHER_FORECAST.value
+# "what should I do to get reimbursed?", "how do I claim my dinner?": the answer needs the STEPS
+# (raise a ticket, attach the receipt photo) as well as the rules, so Vera also searches the procedure
+CLAIM_QUESTION = re.compile(r"\b(reimburs\w*|claim\w*|get (my )?money back|get paid|what (should|do) i do|"
+                            r"how (do|can|should) i (claim|submit|get|raise|add))\b", re.I)
+PROCEDURE_QUERY = "Raising an expense ticket: receipt photo required for every expense line, submit the ticket"
+# date ranges in a message ("2nd to 4th", "5-7 Dec", "8th and 9th", "2026-12-01 to 2026-12-05"):
+# each one is usually one destination, so it tells us how many weather lookups the employee expects
+DAY_RANGE = re.compile(r"(?<![\d-])\d{1,2}(?:st|nd|rd|th)?\s*(?:to|till|until|and|-|–)\s*\d{1,2}(?:st|nd|rd|th)?(?![\d-])",
+                       re.I)
+ISO_RANGE = re.compile(r"\d{4}-\d{2}-\d{2}\s*(?:to|-|–)\s*\d{4}-\d{2}-\d{2}")
+DAY_LIST = re.compile(r"(?<![\d-])\d{1,2}(?:st|nd|rd|th)?(?:\s*,\s*\d{1,2}(?:st|nd|rd|th)?)+(?![\d-])")   # "1,2,3"
+class _TripCity(BaseModel):
+    place: str
+    summary: str = Field(min_length=1, max_length=350)
+
+
+class _TripWeatherOut(BaseModel):
+    """What the AI writes for a multi-place trip; the layout around it is fixed by code."""
+    overview: str = Field(min_length=1, max_length=350)
+    cities: list[_TripCity]
+    travel_checklist: list[str] = Field(min_length=3, max_length=6)
+
+
+# Time budget for writing the weather texts of one answer. The AI writes all cities AT THE SAME TIME;
+# any city whose text is not ready in time gets the grounded fallback text, so a 4-city answer never
+# waits minutes on a slow free-tier model.
+WEATHER_CARDS_BUDGET_SECONDS = 20
 
 
 # ----------------------------------------------------------------------------- persistence helper
@@ -67,6 +97,7 @@ class Outcome:
     reply: str = ""
     citations: list[Citation] = field(default_factory=list)
     weather: VeraWeatherAnswer | None = None
+    weather_cards: list[VeraWeatherAnswer] = field(default_factory=list)   # one per city, in order
     traces: list[ToolTrace] = field(default_factory=list)
     errors: list[ToolResult] = field(default_factory=list)   # failed tool results / failed answer steps
     successes: int = 0
@@ -132,7 +163,7 @@ def handle_message(user: CurrentUser, session_id: UUID, message: str,
     _finish(rec, ctx, state, out, status, guardrail, error_code, started)
     return ChatReplyOut(session_id=session_id, conversation_id=conv["conversation_id"],
                         turn_number=conv["turn_number"], intent=out.intent, reply=out.reply, citations=out.citations,
-                        weather=out.weather, tools_used=out.traces, guardrail_status=guardrail, status=status,
+                        weather=out.weather, weather_cards=out.weather_cards, tools_used=out.traces, guardrail_status=guardrail, status=status,
                         error_code=error_code, retryable=any(e.retryable for e in out.errors),
                         created_at=conv["created_at"])
 
@@ -169,10 +200,15 @@ def _answer(decision: IntentDecision, text: str, session: dict, turn: int, ctx: 
         # (for an inherited follow-up, together with the previous question of this chat)
         query = text if not decision.reason.startswith("inherited") else _with_previous(previous_question, text)
         calls.append({"name": POLICY, "args": {"query": query}, "id": f"auto-{uuid.uuid4().hex[:12]}"})
+    if (POLICY in allowed and CLAIM_QUESTION.search(text)
+            and len(calls) < get_settings().chat_max_tool_calls_per_turn):
+        calls.append({"name": POLICY, "args": {"query": PROCEDURE_QUERY}, "id": f"auto-{uuid.uuid4().hex[:12]}"})
     if not calls:
         return _direct_reply(out, first, messages, decision, ctx)
 
     executed = [(c, _run_and_store(c, rec, out)) for c in calls]
+    if WEATHER in allowed:
+        executed += _remaining_destinations(text, messages, executed, rec, ctx, out)
     if previous_question and _policy_found_nothing(executed):
         # follow-up whose own words matched no rule: search once more with the previous question added
         retry = {"name": POLICY, "args": {"query": _with_previous(previous_question, text)},
@@ -187,10 +223,39 @@ def _answer(decision: IntentDecision, text: str, session: dict, turn: int, ctx: 
         parts.append(_policy_part(policy_runs, messages, ctx, out, has_other_part=bool(weather_runs)))
     # 7b. weather part(s)
     # one part per weather lookup ("Rome 1-3 Dec, then Catania 4-7 Dec"); the card shows the last one
-    for _, result in weather_runs:
-        parts.append(_weather_part(result, text, ctx, out))
+    parts.extend(_weather_parts([result for _, result in weather_runs], text, ctx, out))
     out.reply = _output_checks("\n\n".join(p for p in parts if p), out)
     return out
+
+
+def _expected_destinations(text: str) -> int:
+    """How many trip legs the message lists ("Delhi 2nd to 4th, Mumbai 5th to 7th, Chennai 8th and 9th" = 3)."""
+    return len(DAY_RANGE.findall(text)) + len(ISO_RANGE.findall(text)) + len(DAY_LIST.findall(text))
+
+
+def _remaining_destinations(text: str, messages: list, executed: list, rec: TurnRecorder,
+                            ctx: ToolContext, out: Outcome) -> list:
+    """The model sometimes looks up only the first of several destinations. If the message lists more
+    trip legs than were looked up, show the model what it has done and ask once more for the rest.
+    One extra LLM call, only in that case; never more lookups than the per-turn tool budget."""
+    done = [c for c, _ in executed if c["name"] == WEATHER]
+    budget = get_settings().chat_max_tool_calls_per_turn - len(executed)
+    if not done or len(done) >= _expected_destinations(text) or budget <= 0:
+        return []
+    ids = [c.get("id") or f"call-{i}" for i, (c, _) in enumerate(executed)]       # pair calls with results
+    convo = messages + [AIMessage(content="", tool_calls=[
+        {"name": c["name"], "args": c.get("args") or {}, "id": i} for (c, _), i in zip(executed, ids)])] + [
+        ToolMessage(content=r.model_dump_json()[:1500], tool_call_id=i) for (_, r), i in zip(executed, ids)] + [
+        HumanMessage(prompts.MORE_DESTINATIONS_NOTE.format(done=", ".join(c["args"].get("destination", "?")
+                                                                          for c in done)))]
+    try:
+        more = llm_client.invoke(convo, tools=[tools.TOOLS_BY_NAME[WEATHER]], ctx=ctx)
+    except llm_client.LLMError:
+        return []                                     # keep the destinations we already have
+    seen = {json.dumps(c.get("args"), sort_keys=True) for c in done}
+    new = [c for c in more.tool_calls
+           if c["name"] == WEATHER and json.dumps(c.get("args"), sort_keys=True) not in seen][:budget]
+    return [(c, _run_and_store(c, rec, out)) for c in new]
 
 
 def _with_previous(previous_question: str | None, text: str) -> str:
@@ -275,27 +340,114 @@ def _mark_citations(ids: list[str]) -> None:
             entry.citations_used = [i for i in ids if i in entry.retrieved_ref_ids]
 
 
-def _weather_part(result: ToolResult, question: str, ctx: ToolContext, out: Outcome) -> str:
-    """Weather card for forecasts with values; fixed honest text for every other outcome."""
-    fixed = formatter.weather_status_reply(result)
-    if not result.ok:
-        return fixed
-    forecast = WeatherForecastResult.model_validate(result.data)
-    if not forecast.days:
+def _weather_parts(results: list[ToolResult], question: str, ctx: ToolContext, out: Outcome) -> list[str]:
+    """One text + card per weather lookup, in the order the employee listed the places.
+    Forecasts with values: the AI writes their texts in parallel, within WEATHER_CARDS_BUDGET_SECONDS;
+    late or failed ones use the grounded template. Other outcomes (errors, out of range, place not
+    found) get fixed honest texts."""
+    texts: list[str | None] = [None] * len(results)
+    answers: list[VeraWeatherAnswer | None] = [None] * len(results)
+    jobs: dict[int, WeatherForecastResult] = {}
+    for i, result in enumerate(results):
+        if not result.ok:
+            texts[i] = formatter.weather_status_reply(result)
+            continue
+        forecast = WeatherForecastResult.model_validate(result.data)
+        if forecast.days:
+            jobs[i] = forecast
+            continue
+        texts[i] = formatter.weather_status_reply(result)
         if forecast.status == WeatherStatus.FORECAST_OUT_OF_RANGE:
-            out.weather = formatter.weather_answer(forecast, formatter.template_weather_output(forecast))
-        return fixed
-    card = _weather_card(forecast, question, ctx, out)
-    out.weather = formatter.weather_answer(forecast, card)
-    return formatter.weather_reply_text(out.weather)
+            answers[i] = formatter.weather_answer(forecast, formatter.template_weather_output(forecast))
+
+    if len(jobs) >= 2:
+        # several places: ONE answer for the whole trip (overview, a short section per place, one packing
+        # list), written by ONE AI call within the time budget; otherwise the same layout from the data
+        order = sorted(jobs)
+        forecasts = [jobs[i] for i in order]
+        pool = ThreadPoolExecutor(max_workers=1)
+        future = pool.submit(_trip_text, forecasts, ctx, out)
+        done, _ = wait([future], timeout=WEATHER_CARDS_BUDGET_SECONDS)
+        pool.shutdown(wait=False, cancel_futures=True)
+        written = future.result() if future in done and future.exception() is None else None
+        if written is None:
+            if future not in done:
+                out.reasons.append("output:weather_template_slow")
+            written = formatter.trip_fallback(forecasts)
+        texts[order[0]] = formatter.trip_reply_text(forecasts, *written)
+        for i, forecast in zip(order, forecasts):          # cards: daily tables, from the data
+            answers[i] = formatter.weather_answer(forecast, formatter.template_weather_output(forecast))
+        jobs = {}
+
+    if jobs:
+        # all cities at once; shutdown(wait=False) so a stuck call never holds the reply back
+        pool = ThreadPoolExecutor(max_workers=min(4, len(jobs)))
+        futures = {i: pool.submit(_weather_card, forecast, question, ctx, out) for i, forecast in jobs.items()}
+        done, _ = wait(futures.values(), timeout=WEATHER_CARDS_BUDGET_SECONDS)
+        pool.shutdown(wait=False, cancel_futures=True)
+        for i, forecast in jobs.items():
+            future = futures[i]
+            if future in done and future.exception() is None:
+                card = future.result()
+            else:                                  # too slow or crashed: the grounded template, right away
+                out.reasons.append("output:weather_template_slow")
+                card = formatter.template_weather_output(forecast)
+            answers[i] = formatter.weather_answer(forecast, card)
+            texts[i] = formatter.weather_reply_text(answers[i])
+
+    for answer in answers:                         # cards in the employee's order; `weather` = the last one
+        if answer is not None:
+            out.weather_cards.append(answer)
+            out.weather = answer
+    return [t for t in texts if t]
+
+
+def _trip_text(forecasts: list[WeatherForecastResult], ctx: ToolContext,
+               out: Outcome) -> tuple[str, list[str], list[str]] | None:
+    """One AI call writes the overview, one summary per place and one packing list. Each place's summary is
+    checked against THAT place's data; overview and packing list against the trip's data. One retry.
+    Returns None when the AI is down or still wrong (the caller then uses the data-based layout)."""
+    data = json.dumps([{"place": formatter.city_name(f), **json.loads(formatter.compact_weather_for_llm(f))}
+                       for f in forecasts])
+    convo = [SystemMessage(prompts.TRIP_WEATHER_PROMPT.format(data=data)),
+             HumanMessage("Write the weather part for this trip.")]
+    all_facts = output_validators.weather_facts(forecasts)
+    try:
+        for attempt in (1, 2):
+            trip = llm_client.invoke_json(convo, _TripWeatherOut, ctx=ctx)
+            if trip is None:
+                problems = ["not valid JSON in the required shape"]
+            elif len(trip.cities) != len(forecasts):
+                problems = [f"expected {len(forecasts)} places in 'cities', got {len(trip.cities)}"]
+            else:
+                problems = [f"{formatter.city_name(f)}: {p}" for f, c in zip(forecasts, trip.cities)
+                            for p in output_validators.check_weather_grounding(
+                                c.summary, output_validators.weather_facts([f]))]
+                problems += output_validators.check_weather_grounding(
+                    " ".join([trip.overview, *trip.travel_checklist]), all_facts)
+                if not problems:
+                    overview = (f"Here's the weather for your {len(forecasts)}-stop trip "
+                                f"({formatter.trip_dates(forecasts)}). {trip.overview}")
+                    return overview, [c.summary for c in trip.cities], trip.travel_checklist
+            if attempt == 1:
+                convo = convo + [HumanMessage(prompts.WEATHER_CARD_RETRY_NOTE.format(problems="; ".join(problems)))]
+    except llm_client.LLMError:
+        out.reasons.append("output:weather_template_ai_down")
+        return None
+    out.reasons.append("output:weather_rewritten")
+    return None
 
 
 def _weather_card(forecast: WeatherForecastResult, question: str, ctx: ToolContext,
                   out: Outcome) -> VeraWeatherLLMOutput:
     """LLM writes summary/checklist/limitations from the data; O1 checks it; one retry; then template."""
     facts = output_validators.weather_facts([forecast])
+    place = forecast.resolved_location or forecast.destination
+    # one city at a time: never the employee's whole multi-city message, so the text cannot talk about
+    # (or wrongly "rule out") the other places
     convo = [SystemMessage(prompts.WEATHER_CARD_PROMPT.format(data=formatter.compact_weather_for_llm(forecast))),
-             HumanMessage(question)]
+             HumanMessage(prompts.WEATHER_CARD_REQUEST.format(
+                 place=place, dates=formatter._date_list(forecast.covered_dates or forecast.uncovered_dates)))]
     try:
         for attempt in (1, 2):
             card = llm_client.invoke_json(convo, VeraWeatherLLMOutput, ctx=ctx)
@@ -376,6 +528,7 @@ def _finish(rec: TurnRecorder, ctx: ToolContext, state: tools.TurnState, out: Ou
     rec.add(MessageType.AI_RESPONSE, out.reply, metadata={
         "citations": [c.model_dump() for c in out.citations],
         "weather": out.weather.model_dump(mode="json") if out.weather else None,
+        "weather_cards": [c.model_dump(mode="json") for c in out.weather_cards],
         "tools_used": [t.model_dump(mode="json") for t in out.traces],
         "intent_reason": out.intent_reason, "error_code": error_code.value if error_code else None,
         "guardrail_reasons": out.reasons, "latency_ms": latency})

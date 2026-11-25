@@ -127,7 +127,7 @@ _UNSUPPORTED = re.compile(
     r"severe weather|weather (warning|alert)|red alert|cyclone warning)", re.I)
 _HTML = re.compile(r"<[^>]{1,200}>")
 _INTERNAL = re.compile(r"(traceback|exception|sqlalchemy|psycopg|stack trace|sk-or-|api[_ ]key|\.py\b)", re.I)
-MAX_REPLY_CHARS = 1200
+MAX_REPLY_CHARS = 2000      # spec O4 said 1,200; raised so two-city forecasts and step-by-step answers fit
 
 
 def check_output(text: str) -> tuple[str, list[str]]:

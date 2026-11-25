@@ -1064,6 +1064,9 @@ class ChatReplyOut(OutModel):
     reply: str                             # plain text shown in the bubble
     citations: list[Citation] = []
     weather: VeraWeatherAnswer | None = None
+    # Team addition: one card per weather lookup in this turn ("Rome, then Catania"), in order.
+    # `weather` above stays = the last card, so older clients keep working.
+    weather_cards: list[VeraWeatherAnswer] = Field(default_factory=list)
     tools_used: list[ToolTrace] = []
     guardrail_status: GuardrailStatus
     status: ConversationStatus
