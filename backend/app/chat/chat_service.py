@@ -185,9 +185,10 @@ def _answer(decision: IntentDecision, text: str, session: dict, turn: int, ctx: 
     weather_runs = [(c, r) for c, r in executed if c["name"] == WEATHER]
     if policy_runs:
         parts.append(_policy_part(policy_runs, messages, ctx, out, has_other_part=bool(weather_runs)))
-    # 7b. weather part (the last weather call of the turn is the one shown)
-    if weather_runs:
-        parts.append(_weather_part(weather_runs[-1][1], text, ctx, out))
+    # 7b. weather part(s)
+    # one part per weather lookup ("Rome 1-3 Dec, then Catania 4-7 Dec"); the card shows the last one
+    for _, result in weather_runs:
+        parts.append(_weather_part(result, text, ctx, out))
     out.reply = _output_checks("\n\n".join(p for p in parts if p), out)
     return out
 
