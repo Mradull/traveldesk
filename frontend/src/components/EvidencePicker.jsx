@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Camera, Loader2, X } from "lucide-react";
+import { Camera, Loader2, UploadCloud, X } from "lucide-react";
 import { uploadEvidence } from "../api/evidence";
 import { EVIDENCE_MAX_BYTES, EVIDENCE_TYPES } from "../utils/constants";
 
@@ -11,6 +11,7 @@ export default function EvidencePicker({ value, onChange, onUploadingChange, dis
   const inputRef = useRef(null);
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState(null);
+  const [dragging, setDragging] = useState(false);
 
   // Free the local preview when the photo is removed or the row goes away
   useEffect(() => () => {
@@ -20,7 +21,18 @@ export default function EvidencePicker({ value, onChange, onUploadingChange, dis
   async function handleFile(event) {
     const file = event.target.files?.[0];
     event.target.value = ""; // allow choosing the same file again
-    if (!file) return;
+    if (file) await processFile(file);
+  }
+
+  // Drag and drop (#5): same checks and upload as choosing a file
+  function onDrop(event) {
+    event.preventDefault();
+    setDragging(false);
+    const file = event.dataTransfer.files?.[0];
+    if (file && !disabled && !uploading) processFile(file);
+  }
+
+  async function processFile(file) {
     if (!EVIDENCE_TYPES.includes(file.type)) { setUploadError("Only JPEG, PNG or WEBP photos."); return; }
     if (file.size > EVIDENCE_MAX_BYTES) { setUploadError("The photo must be 5 MB or smaller."); return; }
 
@@ -56,11 +68,25 @@ export default function EvidencePicker({ value, onChange, onUploadingChange, dis
   return (
     <div className="evidence">
       <input ref={inputRef} type="file" accept={EVIDENCE_TYPES.join(",")} onChange={handleFile} hidden />
-      <button type="button" className="btn btn--secondary btn--small" onClick={() => inputRef.current?.click()} disabled={disabled || uploading}>
-        {uploading
-          ? <><Loader2 size={16} className="spin" aria-hidden="true" /> Uploading…</>
-          : <><Camera size={16} aria-hidden="true" /> Add receipt photo</>}
-      </button>
+      <div
+        className={dragging ? "dropzone dropzone--active" : "dropzone"}
+        onDragOver={(e) => { e.preventDefault(); if (!disabled) setDragging(true); }}
+        onDragLeave={() => setDragging(false)}
+        onDrop={onDrop}
+      >
+        {uploading ? (
+          <span className="dropzone__text"><Loader2 size={18} className="spin" aria-hidden="true" /> Uploading…</span>
+        ) : (
+          <>
+            <UploadCloud size={22} aria-hidden="true" />
+            <span className="dropzone__text">Drag a receipt photo here, or</span>
+            <button type="button" className="btn btn--secondary btn--small" onClick={() => inputRef.current?.click()} disabled={disabled}>
+              <Camera size={16} aria-hidden="true" /> Choose photo
+            </button>
+            <span className="dropzone__hint">JPEG, PNG or WEBP · max 5 MB</span>
+          </>
+        )}
+      </div>
       {(uploadError || error) && <span className="field__error">{uploadError || error}</span>}
     </div>
   );

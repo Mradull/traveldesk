@@ -888,3 +888,58 @@ export async function mockChatClose(sessionId) {
   if (s.status === "ACTIVE") Object.assign(s, { status: "CLOSED", close_reason: "USER_CLOSED", closed_at: nowISO() });
   return { session_id: sessionId, status: s.status, close_reason: s.close_reason, closed_at: s.closed_at };
 }
+
+// =====================================================================
+// Receipt check (POST /evidence/{id}/verify), MOCK ONLY.
+// The real check reads the photo with AI. The mock pretends the receipt shows exactly what was
+// typed, unless the photo's FILE NAME contains:
+//   "blur"  -> unreadable     "wrong" -> total 50% higher     "fake" -> looks AI-generated
+// =====================================================================
+const RECEIPT_OUTCOMES = {
+  VALID: "Receipt verified.",
+  VALID_OVER: "Receipt verified. Your manager will see the receipt summary with this line.",
+  INVALID: "This receipt doesn't match the line. The line will go to your manager for review.",
+  INVALID_OVER: "This receipt doesn't match the line. Above the review threshold, the line will be rejected automatically when you submit. Correct the line or upload the right receipt.",
+  UNREADABLE: "We couldn't read this receipt. Upload a clearer photo of the whole receipt.",
+  INCOMPLETE: "Enter the category, amount and date to finish the check.",
+};
+
+export async function mockVerifyReceipt(evidenceId, body) {
+  await delay(900);
+  const me = requireMockUser("EMPLOYEE");
+  const ev = evidenceStore.get(evidenceId);
+  if (!ev || ev.employee_id !== me.employee_id) throw apiError(404, "EVIDENCE_NOT_FOUND");
+  const trip = loadTrips().find((t) => t.trip_id === Number(body.trip_id));
+  const name = ev.original_filename.toLowerCase();
+  const amount = body.amount == null ? null : Number(body.amount);
+  const over = Boolean(body.expense_type && amount != null && amount > POLICY_THRESHOLDS[body.expense_type]);
+  const readAmount = amount == null ? null : (name.includes("wrong") ? Math.round(amount * 1.5) : amount);
+  const reading = {
+    evidence_id: evidenceId, status: name.includes("blur") ? "UNREADABLE" : "READ", is_receipt: true,
+    total_amount: readAmount, receipt_date: body.expense_date, city: trip?.destination ?? null,
+    merchant: "Mock Merchant", summary: `Mock receipt from Mock Merchant, ${trip?.destination ?? ""}.`,
+    ai_generated_score: name.includes("fake") ? 0.93 : 0.02, analyzed_at: nowISO(),
+  };
+  const base = { evidence_id: evidenceId, over_threshold: over, enabled: true, reading };
+  if (name.includes("blur")) return { ...base, verdict: "UNREADABLE", checks: [], outcome: RECEIPT_OUTCOMES.UNREADABLE };
+
+  const fmt = (n) => `Rs ${Number(n).toLocaleString("en-IN", { minimumFractionDigits: 2 })}`;
+  const checks = [
+    amount == null
+      ? { check: "AMOUNT", result: "MISSING_INPUT", message: "Enter the amount to check it" }
+      : readAmount === amount
+        ? { check: "AMOUNT", result: "PASS", message: `Receipt total ${fmt(readAmount)} matches` }
+        : { check: "AMOUNT", result: "FAIL", message: `Receipt total is ${fmt(readAmount)}, but ${fmt(amount)} was entered` },
+    body.expense_date
+      ? { check: "DATE", result: "PASS", message: "Receipt date matches" }
+      : { check: "DATE", result: "MISSING_INPUT", message: "Enter the expense date to check it" },
+    { check: "PLACE", result: "PASS", message: `Receipt is from ${trip?.destination ?? "the destination"}` },
+    name.includes("fake")
+      ? { check: "AUTHENTICITY", result: "FAIL", message: "The image looks AI-generated or edited (93% likely)" }
+      : { check: "AUTHENTICITY", result: "PASS", message: "No signs of an AI-generated image" },
+  ];
+  const results = checks.map((c) => c.result);
+  const verdict = results.includes("FAIL") ? "INVALID" : (results.includes("MISSING_INPUT") || !body.expense_type) ? "INCOMPLETE" : "VALID";
+  const key = verdict === "INCOMPLETE" ? "INCOMPLETE" : `${verdict}${over ? "_OVER" : ""}`;
+  return { ...base, verdict, checks, outcome: RECEIPT_OUTCOMES[key] };
+}

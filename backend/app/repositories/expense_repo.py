@@ -4,6 +4,7 @@ SQL for expenses.
 Owner: Joyal (M1)  |  Spec: Agile Spec v2.0
 """
 
+import json
 from datetime import date
 from decimal import Decimal
 from uuid import UUID
@@ -16,9 +17,12 @@ _EXPENSE_SELECT = """
     SELECT x.expense_id, x.expense_code, x.ticket_id, x.trip_id, x.expense_type, x.amount,
            x.currency, x.expense_date, x.description, x.evidence_id, v.evidence_code,
            v.sha256, x.invoice_number, x.status, x.created_at,
-           k.employee_id, e.manager_id AS owner_manager_id
+           k.employee_id, e.manager_id AS owner_manager_id,
+           x.receipt_verdict, x.receipt_checks,
+           rc.summary AS receipt_summary, rc.ai_generated_score AS receipt_ai_generated_score
     FROM expenses AS x
     JOIN expense_evidence AS v ON v.evidence_id = x.evidence_id
+    LEFT JOIN receipt_checks AS rc ON rc.evidence_id = x.evidence_id
     JOIN expense_tickets AS k ON k.ticket_id = x.ticket_id
     JOIN employees AS e ON e.employee_id = k.employee_id
 """
@@ -36,17 +40,20 @@ def insert(
     description: str,
     invoice_number: str | None,
     status: str,
+    receipt_verdict: str | None = None,
+    receipt_checks: list[dict] | None = None,
 ) -> int:
-    """Insert one expense line (attaching its photo) and return the new expense_id."""
+    """Insert one expense line (attaching its photo) and return the new expense_id.
+    [M3] receipt_verdict / receipt_checks: the receipt check result, frozen with the line."""
     return db.execute(
         text(
             """
             INSERT INTO expenses
                 (ticket_id, trip_id, evidence_id, expense_type, amount, expense_date,
-                 description, invoice_number, status)
+                 description, invoice_number, status, receipt_verdict, receipt_checks)
             VALUES
                 (:ticket_id, :trip_id, :evidence_id, :expense_type, :amount, :expense_date,
-                 :description, :invoice_number, :status)
+                 :description, :invoice_number, :status, :receipt_verdict, CAST(:receipt_checks AS JSONB))
             RETURNING expense_id
             """
         ),
@@ -60,6 +67,8 @@ def insert(
             "description": description,
             "invoice_number": invoice_number,
             "status": status,
+            "receipt_verdict": receipt_verdict,
+            "receipt_checks": json.dumps(receipt_checks or []),
         },
     ).scalar_one()
 

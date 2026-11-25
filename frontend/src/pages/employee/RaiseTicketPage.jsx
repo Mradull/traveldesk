@@ -14,6 +14,9 @@ import ErrorBanner from "../../components/ErrorBanner";
 import StatusBadge from "../../components/StatusBadge";
 import PolicyFlagList from "../../components/PolicyFlagList";
 import ExpenseLineEditor from "../../components/ExpenseLineEditor";
+import Breadcrumbs from "../../components/ui/Breadcrumbs";
+import VeraLauncher from "../../components/chat/VeraLauncher";
+import { useConfirm, useToast } from "../../components/ui/UiProvider";
 
 let nextUid = 0;
 const newLine = () => ({
@@ -23,16 +26,31 @@ const categoryLabel = (value) => EXPENSE_CATEGORIES.find((c) => c.value === valu
 
 function TicketResult({ ticket, trip, onAnother }) {
   const auto = ticket.status === "AUTO_APPROVED";
+  const allRejectedByCheck = ticket.routing === "AI_CHECK";
+  const aiTicket = ticket.ai_rejected_ticket;
+  const heading = allRejectedByCheck
+    ? "Rejected by the receipt check"
+    : auto ? "Ticket approved automatically" : "Ticket sent to your manager";
   return (
     <section className="narrow stack">
+      {aiTicket && (
+        <div className="alert alert--error">
+          <p>
+            <strong>{aiTicket.line_count === 1 ? "1 line was" : `${aiTicket.line_count} lines were`} rejected by the receipt check</strong>{" "}
+            and moved to <Link to={`/tickets/${aiTicket.ticket_id}`}>{aiTicket.ticket_code}</Link>. Open it to see why and create a new ticket.
+          </p>
+        </div>
+      )}
       <div className="card success">
-        <h1>{auto ? "Ticket approved automatically" : "Ticket sent to your manager"}</h1>
+        <h1>{heading}</h1>
         <p className="success__code">{ticket.ticket_code}</p>
         <p>
           <StatusBadge status={ticket.status} /> {formatINR(ticket.total_amount)}, {ticket.line_count} {ticket.line_count === 1 ? "line" : "lines"}
         </p>
         <p className="muted">
-          {auto ? "No policy flags, so the system approved it." : "Some lines were flagged for review. Your manager will decide."}
+          {allRejectedByCheck
+            ? "The receipts didn't match the lines above the review threshold. Open the ticket to see why and create a new one."
+            : auto ? "No policy flags, so the system approved it." : "Some lines were flagged for review. Your manager will decide."}
         </p>
       </div>
       <div className="card">
@@ -77,6 +95,9 @@ export default function RaiseTicketPage() {
   const [submitError, setSubmitError] = useState(null);
   const [submitting, setSubmitting] = useState(false);
   const [result, setResult] = useState(null);
+  const [receiptStatus, setReceiptStatus] = useState({}); // line uid -> "checking" | verdict | ...
+  const toast = useToast();
+  const confirm = useConfirm();
 
   const trip = tripReq.data;
   if (tripReq.loading || rulesReq.loading) return <Loader label="Loading…" />;
@@ -117,7 +138,12 @@ export default function RaiseTicketPage() {
   const errors = { ...serverErrors, ...(attempted ? validateExpenseLines(payload, trip.created_on) : {}) };
   const total = lines.reduce((s, l) => s + (Number(l.amount) || 0), 0);
   const photoCount = lines.filter((l) => l.evidence).length;
-  const canSubmit = photoCount === lines.length && uploading === 0 && !submitting;
+  // Receipt check: wait while a photo is being read; an unreadable photo must be replaced
+  const statuses = lines.map((l) => receiptStatus[l.uid]);
+  const receiptsChecking = statuses.includes("checking");
+  const unreadableCount = statuses.filter((s) => s === "UNREADABLE").length;
+  const rejectedLines = lines.filter((l) => receiptStatus[l.uid] === "INVALID_OVER").length;
+  const canSubmit = photoCount === lines.length && uploading === 0 && !submitting && !receiptsChecking && unreadableCount === 0;
   const thresholds = rulesReq.data?.review_thresholds_inr;
 
   function updateLine(index, next) {
@@ -130,10 +156,26 @@ export default function RaiseTicketPage() {
     setServerErrors({});
   }
 
+  function receiptStatusFor(uid) {
+    return (key) => setReceiptStatus((m) => ({ ...m, [uid]: key }));
+  }
+
   async function handleSubmit(event) {
     event.preventDefault();
     setAttempted(true);
     if (Object.keys(validateExpenseLines(payload, trip.created_on)).length > 0) return;
+    if (rejectedLines > 0) {
+      const ok = await confirm({
+        title: rejectedLines === 1 ? "1 line will be rejected" : `${rejectedLines} lines will be rejected`,
+        message: (
+          <>The receipt doesn't match {rejectedLines === 1 ? "a line" : "lines"} above the review threshold, so the receipt check
+          will reject {rejectedLines === 1 ? "it" : "them"} in a separate ticket. You can correct {rejectedLines === 1 ? "it" : "them"} afterwards
+          with "Create new ticket", or go back and fix the {rejectedLines === 1 ? "line" : "lines"} now.</>
+        ),
+        confirmLabel: "Submit anyway", cancelLabel: "Go back and fix", tone: "danger",
+      });
+      if (!ok) return;
+    }
 
     setSubmitting(true);
     setSubmitError(null);
@@ -141,7 +183,9 @@ export default function RaiseTicketPage() {
     try {
       const body = { expenses: payload };
       if (replaces) body.replacement_of_ticket_id = Number(replaces);
-      setResult(await createTicket(trip.trip_id, body));
+      const created = await createTicket(trip.trip_id, body);
+      setResult(created);
+      toast(`${created.ticket_code} submitted`, { tone: created.status === "REJECTED" ? "warning" : "success" });
     } catch (err) {
       const fields = fieldErrorsFromApi(err);
       if (Object.keys(fields).length > 0) setServerErrors(fields);
@@ -153,7 +197,11 @@ export default function RaiseTicketPage() {
 
   return (
     <section>
-      <Link to={`/trips/${trip.trip_id}`} className="back-link">← {trip.trip_code}, {trip.destination}</Link>
+      <Breadcrumbs items={[
+        { label: "My Trips", to: "/trips" },
+        { label: trip.trip_code, to: `/trips/${trip.trip_id}` },
+        { label: "Add expenses" },
+      ]} />
       <div className="page-header">
         <div>
           <h1>Add expenses</h1>
@@ -186,6 +234,8 @@ export default function RaiseTicketPage() {
               maxDate={todayISO()}
               disabled={submitting}
               onUploadingChange={(busy) => setUploading((n) => n + (busy ? 1 : -1))}
+              tripId={trip.trip_id}
+              onReceiptStatus={receiptStatusFor(line.uid)}
             />
           ))}
 
@@ -208,6 +258,13 @@ export default function RaiseTicketPage() {
               {submitting ? "Submitting…" : "Submit ticket"}
             </button>
             {photoCount < lines.length && <p className="hint">Submit unlocks when every line has a receipt photo.</p>}
+            {receiptsChecking && <p className="hint">Checking receipts…</p>}
+            {unreadableCount > 0 && <p className="field__error">Replace the receipt photo that couldn't be read.</p>}
+            {rejectedLines > 0 && (
+              <p className="field__warn">
+                {rejectedLines === 1 ? "1 line" : `${rejectedLines} lines`} will be rejected by the receipt check on submit.
+              </p>
+            )}
           </div>
 
           {thresholds && (
@@ -223,6 +280,9 @@ export default function RaiseTicketPage() {
           )}
         </aside>
       </div>
+
+      {/* Vera: policy questions while filling the expense lines */}
+      <VeraLauncher />
     </section>
   );
 }

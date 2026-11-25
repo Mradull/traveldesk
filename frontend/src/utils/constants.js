@@ -81,7 +81,25 @@ export const POLICY_THRESHOLDS = {
 export const FLAG_LABELS = {
   OVER_THRESHOLD: "Over threshold",
   DUPLICATE_RECEIPT: "Duplicate receipt",
+  RECEIPT_MISMATCH: "Receipt mismatch",
+  RECEIPT_NOT_VERIFIED: "Receipt not verified",
 };
+
+// Labels for every rejection reason, including the one only the receipt check uses.
+// (REJECTION_REASONS above is the manager's dropdown and must NOT include AI_RECEIPT_INVALID.)
+export const REJECTION_REASON_LABELS = {
+  ...Object.fromEntries(REJECTION_REASONS.map((r) => [r.value, r.label])),
+  AI_RECEIPT_INVALID: "Receipt failed the automated check",
+};
+
+// Receipt check (Spec v2.1)
+export const RECEIPT_CHECK_LABELS = {
+  AMOUNT: "Amount",
+  DATE: "Date",
+  PLACE: "Place",
+  AUTHENTICITY: "Authenticity",
+};
+export const RECEIPT_VERIFY_DEBOUNCE_MS = 600;
 
 export const MAX_LINES_PER_TICKET = 20;
 export const MAX_LINE_AMOUNT_INR = 200000;
@@ -116,6 +134,7 @@ export const ERROR_MESSAGES = {
   EVIDENCE_TOO_LARGE: "The photo is larger than 5 MB.",
   EXPENSE_DATE_BEFORE_TRIP_CREATED: "Expense date is before this trip was created.",
   REPLACEMENT_NOT_ALLOWED: "A new ticket can't be created for this rejected ticket.",
+  RECEIPT_UNREADABLE: "A receipt photo couldn't be read. Upload a clearer photo of the whole receipt.",
   TICKET_READ_ONLY: "This ticket has been decided and is read-only.",
   SESSION_EXPIRED: "The chat ended. Starting a new one.",
   SESSION_CLOSED: "The chat ended. Starting a new one.",

@@ -108,8 +108,9 @@ def _classify(exc: Exception) -> tuple[AICallStatus, ErrorCode, int, bool]:
 
 
 def _log(feature: AIFeature, status: AICallStatus, started: float, ctx: ToolContext | None,
-         usage: dict | None = None, error_code: str | None = None) -> None:
+         usage: dict | None = None, error_code: str | None = None, model_name: str | None = None) -> None:
     provider, model = provider_and_model()
+    model = model_name or model             # [M3] receipt reading may use its own vision model
     log_repo.log_safely(log_repo.insert_ai_call_log, AICallLog(
         feature=feature, provider=provider, model_name=model, prompt_version=get_settings().prompt_version,
         status=status, latency_ms=int((time.monotonic() - started) * 1000),
@@ -120,9 +121,11 @@ def _log(feature: AIFeature, status: AICallStatus, started: float, ctx: ToolCont
 
 
 def _call(messages: list[BaseMessage], tools: list | None, feature: AIFeature,
-          ctx: ToolContext | None) -> tuple[AIMessage, float]:
-    """Call the model with the retry policy. Failed attempts are logged here; the caller logs success."""
-    model = get_chat_model()
+          ctx: ToolContext | None, chat_model: BaseChatModel | None = None,
+          model_name: str | None = None) -> tuple[AIMessage, float]:
+    """Call the model with the retry policy. Failed attempts are logged here; the caller logs success.
+    [M3] chat_model / model_name: optional override (receipt reading with a separate vision model)."""
+    model = chat_model or get_chat_model()
     runnable = model.bind_tools(tools) if tools else model
     attempts = 1 + get_settings().ai_max_retries
     for attempt in range(1, attempts + 1):
@@ -131,7 +134,7 @@ def _call(messages: list[BaseMessage], tools: list | None, feature: AIFeature,
             return runnable.invoke(messages), started
         except Exception as exc:  # noqa: BLE001 - classified below
             status, code, http, retry = _classify(exc)
-            _log(feature, status, started, ctx, error_code=code.value)
+            _log(feature, status, started, ctx, error_code=code.value, model_name=model_name)
             if retry and attempt < attempts:
                 continue          # one more try on timeout / 5xx / connection errors only
             raise LLMError(code, http, "Vera is unavailable right now. Everything else in TravelDesk works.",
@@ -151,19 +154,21 @@ _FENCE = re.compile(r"^```(?:json)?\s*|\s*```$", re.IGNORECASE)
 
 
 def invoke_json(messages: list[BaseMessage], output_model: type[M], *, feature: AIFeature = AIFeature.CHAT,
-                ctx: ToolContext | None = None) -> M | None:
+                ctx: ToolContext | None = None, chat_model: BaseChatModel | None = None,
+                model_name: str | None = None) -> M | None:
     """Ask for JSON and validate it against output_model. Returns None (logged as INVALID_OUTPUT)
     when the text is not valid JSON for that schema - the caller then uses its template."""
-    reply, started = _call(messages, None, feature, ctx)
+    reply, started = _call(messages, None, feature, ctx, chat_model, model_name)
     usage = getattr(reply, "usage_metadata", None)
     text = _FENCE.sub("", content_text(reply).strip())
     start, end = text.find("{"), text.rfind("}")
     try:
         parsed = output_model.model_validate(json.loads(text[start:end + 1]))
     except (ValueError, ValidationError) as exc:
-        _log(feature, AICallStatus.INVALID_OUTPUT, started, ctx, usage=usage, error_code=type(exc).__name__)
+        _log(feature, AICallStatus.INVALID_OUTPUT, started, ctx, usage=usage, error_code=type(exc).__name__,
+             model_name=model_name)
         return None
-    _log(feature, AICallStatus.SUCCESS, started, ctx, usage=usage)
+    _log(feature, AICallStatus.SUCCESS, started, ctx, usage=usage, model_name=model_name)
     return parsed
 
 

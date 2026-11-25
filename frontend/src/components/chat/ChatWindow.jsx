@@ -54,7 +54,7 @@ export default function ChatWindow({ onClose }) {
             </div>
           )}
           {!chat.starting && !chat.startError && (
-            <MessageList items={chat.items} sending={chat.sending} onRetry={chat.retry} />
+            <MessageList items={chat.items} sending={chat.sending} onRetry={chat.retry} onSuggest={chat.send} />
           )}
           <ChatInput onSend={chat.send} disabled={chat.starting || chat.sending || Boolean(chat.startError)} />
         </>

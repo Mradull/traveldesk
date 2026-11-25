@@ -1,7 +1,9 @@
 // /manager/trips/:id: trip details and history; Approve / Reject with review comment; Mark completed.
-// Owner: Mradul (M3)  |  Managers see no weather and no AI output.
-import { useState } from "react";
+// Also shown inside the Approvals split view (embedded). Managers see no weather and no AI output.
+// Owner: Mradul (M3)
 import { Link, useParams } from "react-router-dom";
+import { useState } from "react";
+import { ExternalLink } from "lucide-react";
 import { useApi } from "../../hooks/useApi";
 import { completeTrip, decideTrip, getTrip } from "../../api/trips";
 import { formatDate } from "../../utils/format";
@@ -12,13 +14,19 @@ import TripInfo from "../../components/TripInfo";
 import TicketList from "../../components/TicketList";
 import ApprovalHistory from "../../components/ApprovalHistory";
 import DecisionPanel from "../../components/DecisionPanel";
+import Breadcrumbs from "../../components/ui/Breadcrumbs";
+import { StatusTimeline, tripSteps } from "../../components/ui/StatusTimeline";
+import { useConfirm, useToast } from "../../components/ui/UiProvider";
 
-export default function TripReviewPage() {
-  const { tripId } = useParams();
+/** embedded: shown in the Approvals split view (no breadcrumbs, calls onChanged after a decision) */
+export default function TripReviewPage({ tripId: tripIdProp, embedded = false, onChanged }) {
+  const params = useParams();
+  const tripId = tripIdProp ?? params.tripId;
   const { data: trip, error, loading, reload, setData } = useApi(() => getTrip(tripId), [tripId]);
   const [busy, setBusy] = useState(false);
   const [actionError, setActionError] = useState(null);
-  const [message, setMessage] = useState(null);
+  const toast = useToast();
+  const confirm = useConfirm();
 
   if (loading) return <Loader label="Loading trip…" />;
   if (error) return <ErrorBanner error={error} onRetry={reload} />;
@@ -30,7 +38,8 @@ export default function TripReviewPage() {
     try {
       const updated = await action();
       setData({ ...trip, ...updated });
-      setMessage(successText);
+      toast(successText);
+      onChanged?.();
     } catch (err) {
       setActionError(err);
       if (err.code === "ALREADY_DECIDED") reload();
@@ -39,16 +48,25 @@ export default function TripReviewPage() {
     }
   }
 
-  function handleDecide(body) {
-    run(
-      () => decideTrip(trip.trip_id, body),
-      body.decision === "APPROVED" ? "Trip approved." : "Trip rejected. The employee can see your comment.",
-    );
+  async function handleDecide(body) {
+    if (body.decision === "REJECTED") {
+      const ok = await confirm({
+        title: `Reject ${trip.trip_code}?`,
+        message: <>{trip.employee_name} will see your comment. A rejected trip can't be reopened; they would need to request a new one.</>,
+        confirmLabel: "Reject trip", tone: "danger",
+      });
+      if (!ok) return;
+    }
+    run(() => decideTrip(trip.trip_id, body), body.decision === "APPROVED" ? `${trip.trip_code} approved` : `${trip.trip_code} rejected`);
   }
 
-  function handleComplete() {
-    if (!window.confirm(`Mark ${trip.trip_code} as completed? ${trip.employee_name} won't be able to add new expenses.`)) return;
-    run(() => completeTrip(trip.trip_id), "Trip marked as completed.");
+  async function handleComplete() {
+    const ok = await confirm({
+      title: `Mark ${trip.trip_code} as completed?`,
+      message: <>{trip.employee_name} won't be able to add new expenses. Pending tickets can still be decided.</>,
+      confirmLabel: "Mark completed",
+    });
+    if (ok) run(() => completeTrip(trip.trip_id), `${trip.trip_code} marked as completed`);
   }
 
   // The backend says whether a decision is still allowed (e.g. not after the 90-day window)
@@ -57,7 +75,7 @@ export default function TripReviewPage() {
 
   return (
     <section>
-      <Link to="/manager/approvals" className="back-link">← Approvals</Link>
+      {!embedded && <Breadcrumbs items={[{ label: "Approvals", to: "/manager/approvals" }, { label: trip.trip_code }]} />}
 
       <div className="page-header">
         <div>
@@ -65,12 +83,17 @@ export default function TripReviewPage() {
           <h1>{trip.destination}</h1>
           <StatusBadge status={trip.status_label} />
         </div>
+        {embedded && (
+          <Link className="btn btn--ghost btn--small" to={`/manager/trips/${trip.trip_id}`}>
+            Open full page <ExternalLink size={14} aria-hidden="true" />
+          </Link>
+        )}
       </div>
 
-      {message && <div className="alert alert--info"><p>{message}</p></div>}
+      <StatusTimeline steps={tripSteps(trip)} label="Trip progress" />
       <ErrorBanner error={actionError} />
 
-      <div className="detail-grid">
+      <div className={embedded ? "stack" : "detail-grid"}>
         <div className="stack">
           <TripInfo trip={trip} showEmployee />
           <div className="card">

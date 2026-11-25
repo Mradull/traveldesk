@@ -12,8 +12,8 @@ from sqlalchemy.engine import Connection
 
 from app.core.deps import get_current_user, get_db, require_employee
 from app.core.errors import AppError
-from app.schemas import CurrentUser, ErrorCode, EvidenceUploadOut
-from app.services import evidence_service
+from app.schemas import CurrentUser, ErrorCode, EvidenceUploadOut, ReceiptVerificationOut, ReceiptVerifyRequest
+from app.services import evidence_service, receipt_service
 
 router = APIRouter(prefix="/evidence", tags=["evidence"])
 
@@ -43,6 +43,19 @@ def get_evidence_file(
     """Image bytes for the uploader or the approving manager (others 404). Not cached by browsers."""
     content, mime_type = evidence_service.get_file(db, user, evidence_id)
     return Response(content=content, media_type=mime_type, headers={"Cache-Control": "private, no-store"})
+
+
+@router.post("/{evidence_id}/verify", response_model=ReceiptVerificationOut)
+def verify_receipt(
+    evidence_id: UUID,
+    body: ReceiptVerifyRequest,
+    employee: Annotated[CurrentUser, Depends(require_employee)],
+    db: Db,
+) -> ReceiptVerificationOut:
+    """[M3] Receipt check shown under the photo while the employee fills the line.
+    The photo is read by AI once (first call can take a few seconds); later calls with a changed
+    amount, date or category only re-run the plain-code comparison. Owner only (others 404)."""
+    return receipt_service.verify_for_form(db, employee, evidence_id, body)
 
 
 @router.api_route("/{evidence_id}", methods=["PUT", "PATCH", "DELETE"], include_in_schema=False)

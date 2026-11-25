@@ -1,12 +1,28 @@
+import { useEffect } from "react";
 import { Trash2 } from "lucide-react";
 import EvidencePicker from "./EvidencePicker";
+import ReceiptCheck from "./ReceiptCheck";
+import ThresholdMeter from "./ui/ThresholdMeter";
+import { receiptStatusKey, useReceiptCheck } from "../hooks/useReceiptCheck";
 import { EXPENSE_CATEGORIES } from "../utils/constants";
 import { formatINR } from "../utils/format";
 
 /** One expense line on the expense page */
 export default function ExpenseLineEditor({
   index, line, onChange, onRemove, canRemove, errors, thresholds, minDate, maxDate, disabled, onUploadingChange,
+  tripId, onReceiptStatus,
 }) {
+  // Automated receipt check (Spec v2.1): runs on upload and when category / amount / date change
+  const receipt = useReceiptCheck({
+    tripId,
+    evidenceId: line.evidence?.evidence_id,
+    expenseType: line.expense_type,
+    amount: line.amount,
+    expenseDate: line.expense_date,
+  });
+  const receiptKey = receiptStatusKey(receipt);
+  useEffect(() => { onReceiptStatus?.(receiptKey); }, [receiptKey]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const err = (field) => errors[`expenses.${index}.${field}`];
   const set = (field) => (e) => onChange({ ...line, [field]: e.target.value });
   const threshold = thresholds?.[line.expense_type];
@@ -40,10 +56,9 @@ export default function ExpenseLineEditor({
             disabled={disabled} aria-invalid={Boolean(err("amount"))}
           />
           {err("amount") && <span className="field__error">{err("amount")}</span>}
-          {!err("amount") && threshold != null && (
-            <span className={over ? "field__warn" : "hint"}>
-              {over ? `Above the ${formatINR(threshold)} review threshold: this ticket will go to your manager.` : `Review above ${formatINR(threshold)}`}
-            </span>
+          {!err("amount") && <ThresholdMeter amount={line.amount} threshold={threshold} />}
+          {!err("amount") && over && receiptKey !== "INVALID_OVER" && (
+            <span className="field__warn">Above the review threshold: this ticket will go to your manager.</span>
           )}
         </label>
 
@@ -83,6 +98,7 @@ export default function ExpenseLineEditor({
             disabled={disabled}
             error={err("evidence_id")}
           />
+          <ReceiptCheck check={receipt} onReplace={() => onChange({ ...line, evidence: null })} />
         </div>
       </div>
     </div>

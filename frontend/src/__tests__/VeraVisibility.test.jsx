@@ -1,4 +1,4 @@
-// The Vera chat icon appears ONLY on My Trips (/trips) and never for managers.
+// The Vera chat icon appears ONLY on My Trips, Trip Detail and the Add expense page, and never for managers.
 import { screen } from "@testing-library/react";
 import { renderAt } from "./testUtils";
 
@@ -10,11 +10,21 @@ describe("Vera visibility", () => {
     expect(await screen.findByRole("button", VERA)).toBeInTheDocument();
   });
 
+  it("shows the Vera icon on Trip Detail", async () => {
+    renderAt("/trips/2", "EMPLOYEE");
+    await screen.findByRole("heading", { name: "Bengaluru", level: 1 });
+    expect(screen.getByRole("button", VERA)).toBeInTheDocument();
+  });
+
+  it("shows the Vera icon on the Add expense page", async () => {
+    renderAt("/trips/2/expenses/new", "EMPLOYEE");
+    await screen.findByRole("heading", { name: "Add expenses", level: 1 });
+    expect(screen.getByRole("button", VERA)).toBeInTheDocument();
+  });
+
   const employeePagesWithoutVera = [
     ["/dashboard", "Dashboard"],
     ["/trips/new", "New travel request"],
-    ["/trips/2", "Bengaluru"],
-    ["/trips/2/expenses/new", "Add expenses"],
     ["/tickets/3", "TKT-00003"],
   ];
 
