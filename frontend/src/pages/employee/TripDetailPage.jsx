@@ -13,6 +13,7 @@ import TripInfo from "../../components/TripInfo";
 import TicketList from "../../components/TicketList";
 import ApprovalHistory from "../../components/ApprovalHistory";
 import Breadcrumbs from "../../components/ui/Breadcrumbs";
+import VeraLauncher from "../../components/chat/VeraLauncher";
 import { StatusTimeline, tripSteps } from "../../components/ui/StatusTimeline";
 import { useToast } from "../../components/ui/UiProvider";
 
@@ -132,6 +133,9 @@ export default function TripDetailPage() {
           </div>
         </aside>
       </div>
+
+      {/* Vera: policy and weather questions about this trip */}
+      <VeraLauncher />
     </section>
   );
 }

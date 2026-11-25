@@ -15,6 +15,7 @@ import StatusBadge from "../../components/StatusBadge";
 import PolicyFlagList from "../../components/PolicyFlagList";
 import ExpenseLineEditor from "../../components/ExpenseLineEditor";
 import Breadcrumbs from "../../components/ui/Breadcrumbs";
+import VeraLauncher from "../../components/chat/VeraLauncher";
 import { useConfirm, useToast } from "../../components/ui/UiProvider";
 
 let nextUid = 0;
@@ -279,6 +280,9 @@ export default function RaiseTicketPage() {
           )}
         </aside>
       </div>
+
+      {/* Vera: policy questions while filling the expense lines */}
+      <VeraLauncher />
     </section>
   );
 }
