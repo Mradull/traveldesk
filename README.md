@@ -2,8 +2,6 @@
 
 EY AI & Data Capstone, Project 04 (Team 4). The full design is in the [Agile Spec v2.0](docs/agile_spec_link.md).
 
-> README owner: Mradul (M3). Sections marked TODO are filled during S5.
-
 ## Architecture
 
 ![Architecture](docs/diagrams/04_architecture.png)
