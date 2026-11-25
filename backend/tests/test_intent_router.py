@@ -52,6 +52,15 @@ def test_short_follow_up_inherits_previous_intent(follow_up):
     assert decision.intent == ChatIntent.WEATHER and decision.reason.startswith("inherited")
 
 
+def test_long_answer_with_dates_continues_the_weather_topic():
+    """Answering Vera's 'which city and dates?' with a long message still stays on weather."""
+    msg = "Rome from 1st to 3rd of dec then Catania from 4th to 7th of dec"          # 15 words, no weather word
+    assert len(msg.split()) > 12
+    assert route(msg, previous_intent=ChatIntent.WEATHER).intent == ChatIntent.WEATHER
+    long_unrelated = "Who won the football world cup in 2018 and how many goals were scored in the final match?"
+    assert route(long_unrelated, previous_intent=ChatIntent.WEATHER).intent == ChatIntent.OUT_OF_SCOPE
+
+
 def test_no_inheritance_without_a_previous_tool_turn():
     assert route("and on the 27th?", previous_intent=ChatIntent.GREETING).intent == ChatIntent.OUT_OF_SCOPE
 

@@ -51,6 +51,12 @@ TRAVEL_PLAN = re.compile(
     r"\bmy (next |upcoming )?trip\b", re.I)
 HOW_TO = re.compile(r"\bhow (do|can|should|to)\b|\bwhere (do|can) i\b", re.I)
 FOLLOW_UP_MAX_WORDS = 12
+# dates in a message ("1st to 3rd of dec", "2026-12-01", "05/06", "next week") mean the employee is
+# answering Vera's question about a trip, so it continues the previous topic even when it is long
+DATE_ANSWER = re.compile(
+    r"\b\d{4}-\d{2}-\d{2}\b|\b\d{1,2}/\d{1,2}\b|\b\d{1,2}(st|nd|rd|th)\b|"
+    r"\b(jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec)[a-z]*\b|"
+    r"\b(today|tomorrow|tonight|next week|this week|weekend)\b", re.I)
 
 TOOLS = {
     ChatIntent.POLICY: [ToolName.SEARCH_EXPENSE_POLICY],
@@ -89,7 +95,7 @@ def route(message: str, previous_intent: ChatIntent | None = None,
         return _decision(ChatIntent.WEATHER, "travel plan")
 
     tool_intents = (ChatIntent.POLICY, ChatIntent.WEATHER, ChatIntent.POLICY_AND_WEATHER)
-    if previous_intent in tool_intents and len(text.split()) <= FOLLOW_UP_MAX_WORDS:
+    if previous_intent in tool_intents and (len(text.split()) <= FOLLOW_UP_MAX_WORDS or DATE_ANSWER.search(text)):
         return _decision(previous_intent, f"inherited from previous turn ({previous_intent.value})")
 
     if policy_similarity is not None:

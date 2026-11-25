@@ -264,3 +264,30 @@ def test_follow_up_with_no_match_is_retried_with_the_previous_question(employee,
                              "What is the review threshold for airfare? And for ground transport?"]
     assert "3,000" in reply.reply and "couldn't find" not in reply.reply
     assert [t.tool_name.value for t in reply.tools_used] == ["search_expense_policy", "search_expense_policy"]
+
+
+
+def test_two_cities_in_one_message_are_both_answered(employee, fake_llm, weather_api):
+    """'Rome 1-3 Dec, then Catania 4-7 Dec': two weather lookups -> both summaries in the reply."""
+    import httpx
+    places = {"Rome": ("Rome", "Lazio", "Italy", 41.89, 12.48), "Catania": ("Catania", "Sicily", "Italy", 37.50, 15.09)}
+
+    def geocode(request):
+        name, admin1, country, lat, lon = places[request.url.params["name"]]
+        return httpx.Response(200, json={"results": [{"name": name, "admin1": admin1, "country": country,
+                                                      "latitude": lat, "longitude": lon, "population": 1000000}]})
+    weather_api["geo"].mock(side_effect=geocode)
+    from langchain_core.messages import AIMessage
+    both = AIMessage(content="", tool_calls=[
+        {"name": "get_weather_forecast", "args": {"destination": "Rome", "start_date": "2026-11-23",
+                                                  "end_date": "2026-11-25"}, "id": "call-rome"},
+        {"name": "get_weather_forecast", "args": {"destination": "Catania", "start_date": "2026-11-26",
+                                                  "end_date": "2026-11-29"}, "id": "call-catania"}])
+    fake_llm(both, card("Rome: rain likely (70%), 19.4 °C to 27.8 °C."),
+             card("Catania: rain likely (70%), 19.4 °C to 27.8 °C."))
+    sid = session_manager.open_session(employee).session_id
+    reply = chat_service.handle_message(employee, sid, "Weather in Rome from 23rd to 25th then Catania 26th to 29th?", "r", "c")
+    assert "Rome: rain likely" in reply.reply and "Catania: rain likely" in reply.reply
+    assert reply.reply.count("What to pack:") == 2
+    assert [t.tool_name.value for t in reply.tools_used] == ["get_weather_forecast", "get_weather_forecast"]
+    assert reply.weather.forecast_basis.resolved_location == "Catania, Sicily, Italy"   # card = last lookup
