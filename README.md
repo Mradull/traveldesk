@@ -1,6 +1,6 @@
 # TravelDesk: AI-Powered Travel & Expense Management
 
-AI-powered travel and expense management, Project 04 (Team 4). The full design is in the [Agile Spec v2.0](docs/agile_spec_link.md).
+AI-powered travel and expense management, Project 04 (Team 4). The full design is in the Agile doc (docs/TravelDesk_Agile_Doc.pdf).
 
 ## Architecture
 
