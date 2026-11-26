@@ -1,6 +1,6 @@
 -- The 3 required SQL demonstrations (spec > Required SQL demonstrations).
 -- Owner: Joyal (M1)  |  Spec: Agile Spec v2.0
--- EY brief section 03 "Required SQL demonstrations". The same SQL is used by
+-- Brief section 03 "Required SQL demonstrations". The same SQL is used by
 -- backend/app/repositories/report_repo.py for the manager's Spending Summary page.
 -- To run in pgAdmin: replace :manager_id with the manager's employee_id (1 = Vikram Iyer in the seed).
 

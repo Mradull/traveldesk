@@ -1,6 +1,6 @@
 // Donut chart (#6): share of spend per category, with a legend that also works without colour.
 // CSS variables, so the second colour flips in dark mode (charcoal -> light grey)
-const PALETTE = ["var(--ey-yellow)", "var(--contrast)", "#8a8a96", "#c4c4cd", "#a88f00"];
+const PALETTE = ["var(--brand-yellow)", "var(--contrast)", "#8a8a96", "#c4c4cd", "#a88f00"];
 
 export default function DonutChart({ data, label, format }) {
   const total = data.reduce((s, d) => s + d.value, 0);

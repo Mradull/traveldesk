@@ -59,7 +59,7 @@ export default function LoginPage() {
             ))}
           </ul>
         </div>
-        <p className="login__foot">Veridian Global Services · EY AI &amp; Data Capstone</p>
+        <p className="login__foot">Veridian Global Services · Travel &amp; Expense</p>
       </section>
 
       <main className="login__panel">

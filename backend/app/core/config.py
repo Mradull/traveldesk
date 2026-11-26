@@ -78,7 +78,7 @@ class Settings(BaseSettings):
     openrouter_base_url: str = "https://openrouter.ai/api/v1"
     openrouter_model: str = "nvidia/nemotron-3.5-super-vl:free"
     openrouter_reasoning_enabled: bool = False
-    openrouter_app_title: str = "TravelDesk-EY-Capstone"
+    openrouter_app_title: str = "TravelDesk"
     gemini_api_key: SecretStr | None = None   # Gemini through its OpenAI-compatible endpoint
     gemini_model: str = ""
     gemini_base_url: str = "https://generativelanguage.googleapis.com/v1beta/openai/"
