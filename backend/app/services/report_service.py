@@ -1,7 +1,7 @@
 """
 Runs the three SQL demonstrations for the manager's direct reports, and the employee dashboard.
 
-Owner: Joyal (M1)  |  Spec: Agile Spec v2.0  (Required SQL demonstrations; US-17; EY brief section 03)
+Owner: Joyal (M1)  |  Spec: Agile Spec v2.0  (Required SQL demonstrations; US-17; brief section 03)
 """
 
 from sqlalchemy.engine import Connection

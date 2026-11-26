@@ -9,8 +9,8 @@ Owner         : Finance Operations, Veridian Global Services
 Applies to    : All employees and travel approvers using the TravelDesk platform
 Currency      : All amounts are in Indian Rupees (INR)
 
-Note: Veridian Global Services is a fictional company created for the EY AI & Data
-capstone (Project 04). All names, numbers and contacts are illustrative.
+Note: Veridian Global Services is a fictional company created for a demonstration
+project (Project 04). All names, numbers and contacts are illustrative.
 
 HOW TO READ THIS DOCUMENT
 Every rule has an ID in square brackets, for example [POL-6.2]. The TravelDesk

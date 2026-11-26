@@ -1,7 +1,7 @@
 """
 schema.py  —  TravelDesk data contract (save as backend/app/schemas.py)
 =====================================================================
-Project : AI-Powered Travel & Expense Management (EY Capstone, Project 04)
+Project : AI-Powered Travel & Expense Management (Project 04)
 Version : matches Agile Spec v2.0 (final)
 Purpose : ONE file that defines the shape of every piece of data that moves between
           the components of the system:
