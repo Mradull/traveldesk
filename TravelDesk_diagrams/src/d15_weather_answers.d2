@@ -1,0 +1,101 @@
+vars: {d2-config: {layout-engine: elk; pad: 28}}
+(** -> **)[*].style: {stroke: "#64748B"; stroke-width: 2; font-size: 14; font-color: "#1E293B"; italic: false}
+(** <-> **)[*].style: {stroke: "#64748B"; stroke-width: 2; font-size: 14; font-color: "#1E293B"; italic: false}
+classes: {
+  emp: {style: {fill: "#E6F4F1"; stroke: "#0F766E"; stroke-width: 2; border-radius: 10; font-color: "#0B3B36"}}
+  mgr: {style: {fill: "#EEF0FF"; stroke: "#4338CA"; stroke-width: 2; border-radius: 10; font-color: "#1E1B4B"}}
+  sys: {style: {fill: "#FEF6E4"; stroke: "#B45309"; stroke-width: 2; border-radius: 10; font-color: "#451A03"}}
+  ai: {style: {fill: "#F3EEFF"; stroke: "#7C3AED"; stroke-width: 2; border-radius: 10; font-color: "#2E1065"}}
+  ok: {style: {fill: "#EAF7EE"; stroke: "#15803D"; stroke-width: 2; border-radius: 10; font-color: "#052E16"}}
+  bad: {style: {fill: "#FDECEC"; stroke: "#B91C1C"; stroke-width: 2; border-radius: 10; font-color: "#450A0A"}}
+  ext: {style: {fill: "#FFF3EB"; stroke: "#C2410C"; stroke-width: 2; border-radius: 10; font-color: "#431407"}}
+  neu: {style: {fill: "#F8FAFC"; stroke: "#475569"; stroke-width: 2; border-radius: 10; font-color: "#0F172A"}}
+  db: {shape: cylinder; style: {fill: "#F1F5F9"; stroke: "#334155"; stroke-width: 2; font-color: "#0F172A"}}
+  q: {shape: diamond; style: {fill: "#FFFFFF"; stroke: "#475569"; stroke-width: 2; font-color: "#0F172A"; font-size: 15}}
+  grp: {style: {fill: "#FBFCFD"; stroke: "#94A3B8"; stroke-width: 1; border-radius: 14; font-color: "#334155"; font-size: 19; bold: true}}
+  grpv: {style: {fill: "#FBF9FF"; stroke: "#A78BFA"; stroke-width: 1; border-radius: 14; font-color: "#4C1D95"; font-size: 19; bold: true}}
+  qr: {shape: rectangle; style: {fill: "#FFFFFF"; stroke: "#475569"; stroke-width: 2; border-radius: 22; font-color: "#0F172A"; font-size: 15}}
+  note: {shape: page; style: {fill: "#FFFBEB"; stroke: "#B45309"; stroke-width: 1; font-color: "#451A03"}}
+}
+direction: down
+in: {
+  shape: rectangle
+  class: ai
+  label: |||md
+    **Forecasts of this turn**<br/>in the order the employee listed them
+  |||
+  
+}
+k: "How many\nplaces?" {class: q}
+
+one: "One place" {
+  class: grp
+a1: {
+  shape: rectangle
+  class: ai
+  label: |||md
+    **AI writes**<br/>summary + 3-5 tips with reasons
+  |||
+  
+}
+a2: {
+  shape: rectangle
+  class: sys
+  label: |||md
+    **Grounding**<br/>numbers and conditions from the data
+  |||
+  
+}
+a3: {
+  shape: rectangle
+  class: ok
+  label: |||md
+    **Reply**<br/>summary, What to pack, note, 1 card
+  |||
+  
+}
+
+  a1 -> a2 -> a3
+}
+many: "Two or more places" {
+  class: grp
+b1: {
+  shape: rectangle
+  class: ai
+  label: |||md
+    **One AI call**<br/>overview, a summary per place, one list
+  |||
+  
+}
+b2: {
+  shape: rectangle
+  class: sys
+  label: |||md
+    **Grounding per place**<br/>each place against its own data
+  |||
+  
+}
+b3: {
+  shape: rectangle
+  class: ok
+  label: |||md
+    **Fixed layout**<br/>sections per place, 1 card per place
+  |||
+  
+}
+
+  b1 -> b2 -> b3
+}
+fb: {
+  shape: rectangle
+  class: sys
+  label: |||md
+    **Fallback within 20 s**<br/>same layout built from the data
+  |||
+  
+}
+in -> k
+k -> one.a1: "1"
+k -> many.b1: "2 or more"
+one -> fb: "late or wrong twice" {style: {stroke-dash: 5}}
+many -> fb: "late or wrong twice" {style: {stroke-dash: 5}}

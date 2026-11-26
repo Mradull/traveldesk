@@ -1,0 +1,100 @@
+vars: {d2-config: {layout-engine: elk; pad: 28}}
+(** -> **)[*].style: {stroke: "#64748B"; stroke-width: 2; font-size: 14; font-color: "#1E293B"; italic: false}
+(** <-> **)[*].style: {stroke: "#64748B"; stroke-width: 2; font-size: 14; font-color: "#1E293B"; italic: false}
+classes: {
+  emp: {style: {fill: "#E6F4F1"; stroke: "#0F766E"; stroke-width: 2; border-radius: 10; font-color: "#0B3B36"}}
+  mgr: {style: {fill: "#EEF0FF"; stroke: "#4338CA"; stroke-width: 2; border-radius: 10; font-color: "#1E1B4B"}}
+  sys: {style: {fill: "#FEF6E4"; stroke: "#B45309"; stroke-width: 2; border-radius: 10; font-color: "#451A03"}}
+  ai: {style: {fill: "#F3EEFF"; stroke: "#7C3AED"; stroke-width: 2; border-radius: 10; font-color: "#2E1065"}}
+  ok: {style: {fill: "#EAF7EE"; stroke: "#15803D"; stroke-width: 2; border-radius: 10; font-color: "#052E16"}}
+  bad: {style: {fill: "#FDECEC"; stroke: "#B91C1C"; stroke-width: 2; border-radius: 10; font-color: "#450A0A"}}
+  ext: {style: {fill: "#FFF3EB"; stroke: "#C2410C"; stroke-width: 2; border-radius: 10; font-color: "#431407"}}
+  neu: {style: {fill: "#F8FAFC"; stroke: "#475569"; stroke-width: 2; border-radius: 10; font-color: "#0F172A"}}
+  db: {shape: cylinder; style: {fill: "#F1F5F9"; stroke: "#334155"; stroke-width: 2; font-color: "#0F172A"}}
+  q: {shape: diamond; style: {fill: "#FFFFFF"; stroke: "#475569"; stroke-width: 2; font-color: "#0F172A"; font-size: 15}}
+  grp: {style: {fill: "#FBFCFD"; stroke: "#94A3B8"; stroke-width: 1; border-radius: 14; font-color: "#334155"; font-size: 19; bold: true}}
+  grpv: {style: {fill: "#FBF9FF"; stroke: "#A78BFA"; stroke-width: 1; border-radius: 14; font-color: "#4C1D95"; font-size: 19; bold: true}}
+  qr: {shape: rectangle; style: {fill: "#FFFFFF"; stroke: "#475569"; stroke-width: 2; border-radius: 22; font-color: "#0F172A"; font-size: 15}}
+  note: {shape: page; style: {fill: "#FFFBEB"; stroke: "#B45309"; stroke-width: 1; font-color: "#451A03"}}
+}
+direction: down
+c: {
+  shape: rectangle
+  class: ai
+  label: |||md
+    **get_weather_forecast**<br/>destination, start, end (one call per place)
+  |||
+  
+}
+v: "Inputs\nvalid?" {class: q}
+v1: {
+  shape: rectangle
+  class: sys
+  label: |||md
+    **Ask the employee**<br/>missing or invalid inputs
+  |||
+  
+}
+ch: "In cache?" {class: q}
+g: {
+  shape: rectangle
+  class: neu
+  label: |||md
+    **Geocode**<br/>Open-Meteo, 5 candidates
+  |||
+  
+}
+gq: "Found and\nunambiguous?" {class: q}
+g1: {
+  shape: rectangle
+  class: sys
+  label: |||md
+    **Ask which place**<br/>not found / ambiguous
+  |||
+  
+}
+r: "Any date within\n16 days?" {class: q}
+r1: {
+  shape: rectangle
+  class: sys
+  label: |||md
+    **Forecast not available**<br/>no values, no forecast call
+  |||
+  
+}
+f: {
+  shape: rectangle
+  class: neu
+  label: |||md
+    **Forecast call**<br/>covered dates only; values copied exactly
+  |||
+  
+}
+e1: {
+  shape: rectangle
+  class: bad
+  label: |||md
+    **Provider failure**<br/>timeout, 5xx, 429, bad JSON: Retry
+  |||
+  
+}
+ok: {
+  shape: rectangle
+  class: ok
+  label: |||md
+    **AVAILABLE / PARTIAL**<br/>logged in weather_tool_logs
+  |||
+  
+}
+c -> v
+v -> v1: "no"
+v -> ch: "yes"
+ch -> ok: "yes"
+ch -> g: "no"
+g -> gq
+gq -> g1: "no"
+gq -> r: "yes"
+r -> r1: "no"
+r -> f: "yes"
+f -> ok
+f -> e1: "fails"

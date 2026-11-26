@@ -1,0 +1,109 @@
+vars: {d2-config: {layout-engine: elk; pad: 28}}
+(** -> **)[*].style: {stroke: "#64748B"; stroke-width: 2; font-size: 14; font-color: "#1E293B"; italic: false}
+(** <-> **)[*].style: {stroke: "#64748B"; stroke-width: 2; font-size: 14; font-color: "#1E293B"; italic: false}
+classes: {
+  emp: {style: {fill: "#E6F4F1"; stroke: "#0F766E"; stroke-width: 2; border-radius: 10; font-color: "#0B3B36"}}
+  mgr: {style: {fill: "#EEF0FF"; stroke: "#4338CA"; stroke-width: 2; border-radius: 10; font-color: "#1E1B4B"}}
+  sys: {style: {fill: "#FEF6E4"; stroke: "#B45309"; stroke-width: 2; border-radius: 10; font-color: "#451A03"}}
+  ai: {style: {fill: "#F3EEFF"; stroke: "#7C3AED"; stroke-width: 2; border-radius: 10; font-color: "#2E1065"}}
+  ok: {style: {fill: "#EAF7EE"; stroke: "#15803D"; stroke-width: 2; border-radius: 10; font-color: "#052E16"}}
+  bad: {style: {fill: "#FDECEC"; stroke: "#B91C1C"; stroke-width: 2; border-radius: 10; font-color: "#450A0A"}}
+  ext: {style: {fill: "#FFF3EB"; stroke: "#C2410C"; stroke-width: 2; border-radius: 10; font-color: "#431407"}}
+  neu: {style: {fill: "#F8FAFC"; stroke: "#475569"; stroke-width: 2; border-radius: 10; font-color: "#0F172A"}}
+  db: {shape: cylinder; style: {fill: "#F1F5F9"; stroke: "#334155"; stroke-width: 2; font-color: "#0F172A"}}
+  q: {shape: diamond; style: {fill: "#FFFFFF"; stroke: "#475569"; stroke-width: 2; font-color: "#0F172A"; font-size: 15}}
+  grp: {style: {fill: "#FBFCFD"; stroke: "#94A3B8"; stroke-width: 1; border-radius: 14; font-color: "#334155"; font-size: 19; bold: true}}
+  grpv: {style: {fill: "#FBF9FF"; stroke: "#A78BFA"; stroke-width: 1; border-radius: 14; font-color: "#4C1D95"; font-size: 19; bold: true}}
+  qr: {shape: rectangle; style: {fill: "#FFFFFF"; stroke: "#475569"; stroke-width: 2; border-radius: 22; font-color: "#0F172A"; font-size: 15}}
+  note: {shape: page; style: {fill: "#FFFBEB"; stroke: "#B45309"; stroke-width: 1; font-color: "#451A03"}}
+}
+direction: down
+c1: {
+  shape: rectangle
+  class: ai
+  label: |||md
+    **Vera turn**<br/>CHAT
+  |||
+  
+}
+c2: {
+  shape: rectangle
+  class: ai
+  label: |||md
+    **Session memory**<br/>SUMMARY
+  |||
+  
+}
+c3: {
+  shape: rectangle
+  class: ai
+  label: |||md
+    **Receipt service**<br/>RECEIPT
+  |||
+  
+}
+sw: {
+  shape: rectangle
+  class: neu
+  label: |||md
+    **Provider switch (ai/llm_client.py)**<br/>AI_PROVIDER = openrouter | gemini | azure<br/>model, key, base URL only in backend/.env
+  |||
+  
+}
+rt: {
+  shape: rectangle
+  class: sys
+  label: |||md
+    **Call policy**<br/>timeout 15 s; up to 2 retries<br/>on timeout / 5xx only, never on 401 / 429
+  |||
+  
+}
+lg: {
+  shape: rectangle
+  class: neu
+  label: |||md
+    **ai_call_logs**<br/>feature, provider, model, status,<br/>latency, tokens; failure reason
+  |||
+  
+}
+p1: {
+  shape: rectangle
+  class: ext
+  label: |||md
+    **OpenRouter**<br/>e.g. nemotron-3.5-super-vl:free
+  |||
+  
+}
+p2: {
+  shape: rectangle
+  class: ext
+  label: |||md
+    **Gemini**<br/>e.g. gemini-3.1-flash-lite
+  |||
+  
+}
+p3: {
+  shape: rectangle
+  class: ext
+  label: |||md
+    **Azure OpenAI**<br/>optional
+  |||
+  
+}
+er: {
+  shape: rectangle
+  class: bad
+  label: |||md
+    **After retries: LLMError**<br/>Vera: safe message + Retry<br/>Receipt: NOT_VERIFIED, manager decides
+  |||
+  
+}
+c1 -> sw
+c2 -> sw
+c3 -> sw
+sw -> rt
+rt -> lg {style: {stroke-dash: 5}}
+rt -> p1
+rt -> p2
+rt -> p3 {style: {stroke-dash: 5}}
+p2 -> er: "failure" {style: {stroke-dash: 5}}

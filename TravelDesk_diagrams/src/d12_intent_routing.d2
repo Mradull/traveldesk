@@ -1,0 +1,120 @@
+vars: {d2-config: {layout-engine: elk; pad: 28}}
+(** -> **)[*].style: {stroke: "#64748B"; stroke-width: 2; font-size: 14; font-color: "#1E293B"; italic: false}
+(** <-> **)[*].style: {stroke: "#64748B"; stroke-width: 2; font-size: 14; font-color: "#1E293B"; italic: false}
+classes: {
+  emp: {style: {fill: "#E6F4F1"; stroke: "#0F766E"; stroke-width: 2; border-radius: 10; font-color: "#0B3B36"}}
+  mgr: {style: {fill: "#EEF0FF"; stroke: "#4338CA"; stroke-width: 2; border-radius: 10; font-color: "#1E1B4B"}}
+  sys: {style: {fill: "#FEF6E4"; stroke: "#B45309"; stroke-width: 2; border-radius: 10; font-color: "#451A03"}}
+  ai: {style: {fill: "#F3EEFF"; stroke: "#7C3AED"; stroke-width: 2; border-radius: 10; font-color: "#2E1065"}}
+  ok: {style: {fill: "#EAF7EE"; stroke: "#15803D"; stroke-width: 2; border-radius: 10; font-color: "#052E16"}}
+  bad: {style: {fill: "#FDECEC"; stroke: "#B91C1C"; stroke-width: 2; border-radius: 10; font-color: "#450A0A"}}
+  ext: {style: {fill: "#FFF3EB"; stroke: "#C2410C"; stroke-width: 2; border-radius: 10; font-color: "#431407"}}
+  neu: {style: {fill: "#F8FAFC"; stroke: "#475569"; stroke-width: 2; border-radius: 10; font-color: "#0F172A"}}
+  db: {shape: cylinder; style: {fill: "#F1F5F9"; stroke: "#334155"; stroke-width: 2; font-color: "#0F172A"}}
+  q: {shape: diamond; style: {fill: "#FFFFFF"; stroke: "#475569"; stroke-width: 2; font-color: "#0F172A"; font-size: 15}}
+  grp: {style: {fill: "#FBFCFD"; stroke: "#94A3B8"; stroke-width: 1; border-radius: 14; font-color: "#334155"; font-size: 19; bold: true}}
+  grpv: {style: {fill: "#FBF9FF"; stroke: "#A78BFA"; stroke-width: 1; border-radius: 14; font-color: "#4C1D95"; font-size: 19; bold: true}}
+  qr: {shape: rectangle; style: {fill: "#FFFFFF"; stroke: "#475569"; stroke-width: 2; border-radius: 22; font-color: "#0F172A"; font-size: 15}}
+  note: {shape: page; style: {fill: "#FFFBEB"; stroke: "#B45309"; stroke-width: 1; font-color: "#451A03"}}
+}
+grid-rows: 9
+grid-columns: 2
+grid-gap: 30
+q1: "1. Only greeting words?" {class: qr}
+oq1: {
+  shape: rectangle
+  class: neu
+  label: |||md
+    **GREETING**<br/>fixed reply
+  |||
+  
+}
+q2: "2. Asks for own records, or an action?" {class: qr}
+oq2: {
+  shape: rectangle
+  class: bad
+  label: |||md
+    **OUT_OF_SCOPE**<br/>boundary reply
+  |||
+  
+}
+q3: "3. Weather AND policy words?" {class: qr}
+oq3: {
+  shape: rectangle
+  class: ai
+  label: |||md
+    **POLICY_AND_WEATHER**<br/>both tools
+  |||
+  
+}
+q4: "4. Weather words?" {class: qr}
+oq4: {
+  shape: rectangle
+  class: ai
+  label: |||md
+    **WEATHER**<br/>forecast tool
+  |||
+  
+}
+q5: "5. Policy or how-to words?" {class: qr}
+oq5: {
+  shape: rectangle
+  class: ai
+  label: |||md
+    **POLICY**<br/>policy search
+  |||
+  
+}
+q6: "6. Travel plan ('going to Italy')?" {class: qr}
+oq6: {
+  shape: rectangle
+  class: ai
+  label: |||md
+    **WEATHER**<br/>asks city + exact dates
+  |||
+  
+}
+q7: "7. Follow-up: short, or gives dates?" {class: qr}
+oq7: {
+  shape: rectangle
+  class: ai
+  label: |||md
+    **Previous intent**<br/>continues the topic
+  |||
+  
+}
+q8: "8. Similar to a policy rule (>= 0.35)?" {class: qr}
+oq8: {
+  shape: rectangle
+  class: ai
+  label: |||md
+    **POLICY**<br/>embedding similarity
+  |||
+  
+}
+q9: "9. Nothing matched" {class: qr}
+oq9: {
+  shape: rectangle
+  class: bad
+  label: |||md
+    **OUT_OF_SCOPE**<br/>boundary reply
+  |||
+  
+}
+q1 -> oq1: "yes"
+q1 -> q2: "no"
+q2 -> oq2: "yes"
+q2 -> q3: "no"
+q3 -> oq3: "yes"
+q3 -> q4: "no"
+q4 -> oq4: "yes"
+q4 -> q5: "no"
+q5 -> oq5: "yes"
+q5 -> q6: "no"
+q6 -> oq6: "yes"
+q6 -> q7: "no"
+q7 -> oq7: "yes"
+q7 -> q8: "no"
+q8 -> oq8: "yes"
+q8 -> q9: "no"
+q9 -> oq9
