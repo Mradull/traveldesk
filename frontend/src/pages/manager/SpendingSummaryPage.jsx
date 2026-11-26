@@ -105,7 +105,7 @@ export default function SpendingSummaryPage() {
               {byTrip.map((t, i) => (
                 <li key={t.label}>
                   <span className="bar-chart__label bar-chart__label--wide">{t.label}</span>
-                  <span className="bar-chart__track"><span className="bar-chart__bar" style={{ width: `${(t.value / maxTrip) * 100}%`, ...(i === 0 ? { background: "var(--brand-yellow)" } : {}) }} /></span>
+                  <span className="bar-chart__track"><span className="bar-chart__bar" style={{ width: `${(t.value / maxTrip) * 100}%`, ...(i === 0 ? { background: "var(--accent)" } : {}) }} /></span>
                   <span className="bar-chart__value">{formatINR(t.value)}</span>
                 </li>
               ))}
