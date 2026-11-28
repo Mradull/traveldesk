@@ -9,6 +9,17 @@ AI-powered travel and expense management, Project 04 (Team 4).
 React (Employee and Manager views, JWT) -> FastAPI (business API + isolated Vera chat API) -> local PostgreSQL (pgAdmin).
 Vera uses only expense-policy RAG and the Open-Meteo weather tool, through a hosted LLM (OpenRouter, Nemotron).
 
+
+## Specifications and test evidence
+
+- **Specification:** the Agile document is `docs/TravelDesk_Agile_Doc.pdf`; the database schema is `docs/TravelDesk_v3_schema.zip`.
+- **API:** Swagger (http://localhost:8000/docs) shows 33 endpoints: 28 business endpoints (M1) and 5 Vera chat endpoints (M2).
+- **Roles and login:** two roles, EMPLOYEE and MANAGER. Login returns a JWT (HS256, valid 60 minutes); passwords are stored as bcrypt hashes.
+- **Claims:** an employee submits one ticket with one or more expense lines, and a receipt photo is mandatory on every line. The manager makes one decision per ticket.
+- **Receipt check (Spec v2.1, migration 007):** with `RECEIPT_CHECK_ENABLED=true` in `backend/.env`, an AI vision model reads each receipt and Sightengine scores whether the image was AI-generated (0.5 or more fails). A failed line at or below the category limit is flagged for the manager; above the limit it is split into a separate ticket that the system rejects.
+- **Test evidence:** screenshots of every Swagger test case (ALL EDGE CASES, login, trips, receipt photos, tickets, manager decisions, replacement, completion, reports and AI receipt verification R01–R21) and the pgAdmin database checks are in `docs/swagger screenshots evidence doc/`.
+
+
 ## Setup
 
 1. **Database** (each teammate, once): install PostgreSQL + pgAdmin, then in pgAdmin's Query Tool:
